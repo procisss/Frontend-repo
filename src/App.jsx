@@ -4357,3 +4357,5 @@ function LockedOverlay({ reason, onUpgrade }) {
     </div>
   );
 }
+
+const API_URL = "https://backend-repo-psi.vercel.app/";
