@@ -147,7 +147,7 @@ function useLimits() {
   const fetchLimits = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res  = await fetch('https://backend-repo-hiaw.onrender.com/api/premium/limits', {
+      const res  = await fetch('https://backend-repo-teal.vercel.app//api/premium/limits', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -279,7 +279,7 @@ function LoginPage({ onLogin, onSignup, onAdmin }) {
   const [error,setError]=useState("");
   const handleLogin = async () => {
     try {
-      const res = await fetch('https://backend-repo-hiaw.onrender.com/api/auth/login', {
+      const res = await fetch('https://backend-repo-teal.vercel.app//api/auth/login', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ email, password: pass })
       });
@@ -328,7 +328,7 @@ function SignupPage({ onBack }) {
     if (form.password !== form.confirm) return setError('Passwords do not match');
     setLoading(true); setError('');
     try {
-      const res = await fetch('https://backend-repo-hiaw.onrender.com/api/auth/signup', {
+      const res = await fetch('https://backend-repo-teal.vercel.app//api/auth/signup', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ businessName:form.businessName, ownerName:form.ownerName, email:form.email, phone:form.phone, password:form.password })
       });
@@ -376,7 +376,7 @@ function Dashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const res  = await fetch('https://backend-repo-hiaw.onrender.com/api/dashboard', { headers });
+        const res  = await fetch('https://backend-repo-teal.vercel.app//api/dashboard', { headers });
         const json = await res.json();
         setData(json);
       } catch (err) {
@@ -693,7 +693,7 @@ function Inventory() {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res  = await fetch('https://backend-repo-hiaw.onrender.com/api/inventory', { headers });
+      const res  = await fetch('https://backend-repo-teal.vercel.app//api/inventory', { headers });
       const data = await res.json();
       setItems(data.items || []);
       setTV(data.totalValue || 0);
@@ -723,7 +723,7 @@ function Inventory() {
     if (!form.name || !form.category || !form.unit) return setFormError('Name, category, and unit are required.');
     setSaving(true); setFormError('');
     try {
-      const url    = editItem ? `https://backend-repo-hiaw.onrender.com/api/inventory/${editItem.id}` : 'https://backend-repo-hiaw.onrender.com/api/inventory';
+      const url    = editItem ? `https://backend-repo-teal.vercel.app//api/inventory/${editItem.id}` : 'https://backend-repo-teal.vercel.app//api/inventory';
       const method = editItem ? 'PUT' : 'POST';
       const res    = await fetch(url, { method, headers, body: JSON.stringify(form) });
       const data   = await res.json();
@@ -736,7 +736,7 @@ function Inventory() {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this product?')) return;
     setDeleting(id);
-    try { await fetch(`https://backend-repo-hiaw.onrender.com/api/inventory/${id}`, { method:'DELETE', headers }); fetchItems(); }
+    try { await fetch(`https://backend-repo-teal.vercel.app//api/inventory/${id}`, { method:'DELETE', headers }); fetchItems(); }
     finally { setDeleting(null); }
   };
 
@@ -936,8 +936,8 @@ function Recipes() {
     setLoading(true);
     try {
       const [rRes, iRes] = await Promise.all([
-        fetch('https://backend-repo-hiaw.onrender.com/api/recipes',   { headers }),
-        fetch('https://backend-repo-hiaw.onrender.com/api/inventory', { headers }),
+        fetch('https://backend-repo-teal.vercel.app//api/recipes',   { headers }),
+        fetch('https://backend-repo-teal.vercel.app//api/inventory', { headers }),
       ]);
       const rData = await rRes.json();
       const iData = await iRes.json();
@@ -975,7 +975,7 @@ function Recipes() {
     if (ingredients.length === 0 || ingredients.some(i => !i.name || !i.quantity)) return setFormError('All ingredients need a name and quantity.');
     setSaving(true); setFormError('');
     try {
-      const url    = editItem ? `https://backend-repo-hiaw.onrender.com/api/recipes/${editItem.id}` : 'https://backend-repo-hiaw.onrender.com/api/recipes';
+      const url    = editItem ? `https://backend-repo-teal.vercel.app//api/recipes/${editItem.id}` : 'https://backend-repo-teal.vercel.app//api/recipes';
       const method = editItem ? 'PUT' : 'POST';
       const res    = await fetch(url, { method, headers, body: JSON.stringify({ ...form, ingredients }) });
       const data   = await res.json();
@@ -988,7 +988,7 @@ function Recipes() {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this recipe?')) return;
     setDeleting(id);
-    try { await fetch(`https://backend-repo-hiaw.onrender.com/api/recipes/${id}`, { method:'DELETE', headers }); fetchAll(); }
+    try { await fetch(`https://backend-repo-teal.vercel.app//api/recipes/${id}`, { method:'DELETE', headers }); fetchAll(); }
     finally { setDeleting(null); }
   };
 
@@ -1156,7 +1156,7 @@ function POS() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res  = await fetch('https://backend-repo-hiaw.onrender.com/api/pos/products', { headers });
+      const res  = await fetch('https://backend-repo-teal.vercel.app//api/pos/products', { headers });
       const data = await res.json();
       setProducts(data.products || []);
     } catch (err) { console.error(err); }
@@ -1166,7 +1166,7 @@ function POS() {
   const fetchHistory = async () => {
     setHistoryLoading(true);
     try {
-      const res  = await fetch('https://backend-repo-hiaw.onrender.com/api/pos/orders', { headers });
+      const res  = await fetch('https://backend-repo-teal.vercel.app//api/pos/orders', { headers });
       const data = await res.json();
       setOrderHistory(data.orders || []);
     } catch (err) { console.error(err); }
@@ -1197,7 +1197,7 @@ function POS() {
   const handleConfirmOrder = async () => {
     setSaving(true);
     try {
-      const res = await fetch('https://backend-repo-hiaw.onrender.com/api/pos/orders', {
+      const res = await fetch('https://backend-repo-teal.vercel.app//api/pos/orders', {
         method:'POST', headers,
         body: JSON.stringify({
           items: order.map(o=>({ recipeId:o.id, name:o.name, quantity:o.qty, unitPrice:o.selling_price })),
@@ -1378,7 +1378,7 @@ function RestockModal({ inventoryItems, onClose, onSaved }) {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('https://backend-repo-hiaw.onrender.com/api/purchases', {
+      const res = await fetch('https://backend-repo-teal.vercel.app//api/purchases', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -1623,8 +1623,8 @@ function Purchases() {
     setLoading(true);
     try {
       const [pRes, iRes] = await Promise.all([
-        fetch('https://backend-repo-hiaw.onrender.com/api/purchases',  { headers }),
-        fetch('https://backend-repo-hiaw.onrender.com/api/inventory',  { headers }),
+        fetch('https://backend-repo-teal.vercel.app//api/purchases',  { headers }),
+        fetch('https://backend-repo-teal.vercel.app//api/inventory',  { headers }),
       ]);
       const pData = await pRes.json();
       const iData = await iRes.json();
@@ -1647,7 +1647,7 @@ function Purchases() {
     if (!window.confirm('Delete this restock record? (Inventory quantities will NOT be reversed.)')) return;
     setDeleting(id);
     try {
-      await fetch(`https://backend-repo-hiaw.onrender.com/api/purchases/${id}`, { method: 'DELETE', headers });
+      await fetch(`https://backend-repo-teal.vercel.app//api/purchases/${id}`, { method: 'DELETE', headers });
       fetchAll();
     } finally { setDeleting(null); }
   };
@@ -1906,7 +1906,7 @@ function Analytics() {
   const fetchAnalytics = async (r) => {
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`https://backend-repo-hiaw.onrender.com/api/analytics?range=${r}`, { headers });
+      const res = await fetch(`https://backend-repo-teal.vercel.app//api/analytics?range=${r}`, { headers });
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       setData(await res.json());
     } catch (err) { console.error(err); setError(err.message); }
@@ -2203,7 +2203,7 @@ function PremiumPage() {
   const fetchSub = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res   = await fetch('https://backend-repo-hiaw.onrender.com/api/premium/status', {
+      const res   = await fetch('https://backend-repo-teal.vercel.app//api/premium/status', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data  = await res.json();
@@ -2578,7 +2578,7 @@ function Alerts({ onAlertChange }) {
   const fetchAlerts = async () => {
     setLoading(true);
     try {
-      const res  = await fetch('https://backend-repo-hiaw.onrender.com/api/alerts', { headers });
+      const res  = await fetch('https://backend-repo-teal.vercel.app//api/alerts', { headers });
       const data = await res.json();
       setAutoAlerts(data.autoAlerts || []);
       setManualAlerts(data.manualAlerts || []);
@@ -2679,7 +2679,7 @@ function Alerts({ onAlertChange }) {
     if (!form.title) return setFormError('Title is required.');
     setSaving(true); setFormError('');
     try {
-      const res  = await fetch('https://backend-repo-hiaw.onrender.com/api/alerts', { method: 'POST', headers, body: JSON.stringify(form) });
+      const res  = await fetch('https://backend-repo-teal.vercel.app//api/alerts', { method: 'POST', headers, body: JSON.stringify(form) });
       const data = await res.json();
       if (!res.ok) return setFormError(data.message || 'Failed to create.');
       setShowModal(false); fetchAlerts();
@@ -2689,13 +2689,13 @@ function Alerts({ onAlertChange }) {
  
   const handleResolve = async (id) => {
     setActioning(id);
-    try { await fetch(`https://backend-repo-hiaw.onrender.com/api/alerts/${id}/resolve`, { method: 'PUT', headers }); fetchAlerts(); }
+    try { await fetch(`https://backend-repo-teal.vercel.app//api/alerts/${id}/resolve`, { method: 'PUT', headers }); fetchAlerts(); }
     finally { setActioning(null); }
   };
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this alert?')) return;
     setActioning(id + '-del');
-    try { await fetch(`https://backend-repo-hiaw.onrender.com/api/alerts/${id}`, { method: 'DELETE', headers }); fetchAlerts(); }
+    try { await fetch(`https://backend-repo-teal.vercel.app//api/alerts/${id}`, { method: 'DELETE', headers }); fetchAlerts(); }
     finally { setActioning(null); }
   };
  
@@ -2828,7 +2828,7 @@ function Profile() {
     (async()=>{
       try {
         const token=localStorage.getItem('token');
-        const res=await fetch('https://backend-repo-hiaw.onrender.com/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});
+        const res=await fetch('https://backend-repo-teal.vercel.app//api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});
         const data=await res.json();
         if(data.user) setUser(data.user);
       } catch(err){console.error(err);}
@@ -2915,13 +2915,13 @@ function AdminUserActions({ user, onRefresh }) {
 
   const upgrade = async (billingCycle) => {
     setLoading(true);
-    await fetch(`https://backend-repo-hiaw.onrender.com/api/premium/admin/upgrade/${user.id}`,{method:'PUT',headers,body:JSON.stringify({billingCycle})});
+    await fetch(`https://backend-repo-teal.vercel.app//api/premium/admin/upgrade/${user.id}`,{method:'PUT',headers,body:JSON.stringify({billingCycle})});
     setLoading(false); onRefresh();
   };
   const downgrade = async () => {
     if(!window.confirm('Downgrade this user to free?')) return;
     setLoading(true);
-    await fetch(`https://backend-repo-hiaw.onrender.com/api/premium/admin/downgrade/${user.id}`,{method:'PUT',headers});
+    await fetch(`https://backend-repo-teal.vercel.app//api/premium/admin/downgrade/${user.id}`,{method:'PUT',headers});
     setLoading(false); onRefresh();
   };
 
@@ -2993,7 +2993,7 @@ export default function App() {
     const fetchAlertCount = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res   = await fetch('https://backend-repo-hiaw.onrender.com/api/alerts', {
+        const res   = await fetch('https://backend-repo-teal.vercel.app//api/alerts', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -3016,7 +3016,7 @@ export default function App() {
     pos:<POS/>, purchases:<Purchases/>, analytics:<Analytics/>,
     alerts:<Alerts onAlertChange={()=>{
       // Refresh badge when alerts page changes something
-      fetch('https://backend-repo-hiaw.onrender.com/api/alerts', {
+      fetch('https://backend-repo-teal.vercel.app//api/alerts', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       }).then(r=>r.json()).then(d=>setAlertCount(d.summary?.total||0)).catch(()=>{});
     }}/>,
@@ -3040,7 +3040,7 @@ function AdminLogin({ onBack, onLogin }) {
   const [error,setError]=useState('');
   const handleAdminLogin = async () => {
     try {
-      const res=await fetch('https://backend-repo-hiaw.onrender.com/api/auth/admin-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
+      const res=await fetch('https://backend-repo-teal.vercel.app//api/auth/admin-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
       const data=await res.json();
       if(data.token){localStorage.setItem('token',data.token);onLogin();}
       else setError(data.message||'Invalid admin credentials');
@@ -3110,7 +3110,7 @@ function AdminOverview() {
   useEffect(() => {
     (async () => {
       try {
-        const res  = await fetch('https://backend-repo-hiaw.onrender.com/api/admin/overview', { headers });
+        const res  = await fetch('https://backend-repo-teal.vercel.app//api/admin/overview', { headers });
         const json = await res.json();
         setData(json);
       } catch(err) { console.error(err); }
@@ -3286,7 +3286,7 @@ function AdminUsers() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res  = await fetch('https://backend-repo-hiaw.onrender.com/api/admin/users', { headers });
+      const res  = await fetch('https://backend-repo-teal.vercel.app//api/admin/users', { headers });
       const data = await res.json();
       setUsers(data.users || []);
     } catch(err) { console.error(err); }
@@ -3423,8 +3423,8 @@ function AdminSubs() {
     (async () => {
       try {
         const [sRes, rRes] = await Promise.all([
-          fetch('https://backend-repo-hiaw.onrender.com/api/admin/subscriptions', { headers }),
-          fetch('https://backend-repo-hiaw.onrender.com/api/admin/upgrade-requests', { headers }),
+          fetch('https://backend-repo-teal.vercel.app//api/admin/subscriptions', { headers }),
+          fetch('https://backend-repo-teal.vercel.app//api/admin/upgrade-requests', { headers }),
         ]);
         setData(await sRes.json());
         const rData = await rRes.json();
@@ -3438,18 +3438,18 @@ function AdminSubs() {
     setAct(reqId);
     try {
       // Upgrade the user
-      await fetch(`https://backend-repo-hiaw.onrender.com/api/premium/admin/upgrade/${userId}`, {
+      await fetch(`https://backend-repo-teal.vercel.app//api/premium/admin/upgrade/${userId}`, {
         method:'PUT', headers,
         body: JSON.stringify({ billingCycle }),
       });
       // Mark request as approved
-      await fetch(`https://backend-repo-hiaw.onrender.com/api/admin/upgrade-requests/${reqId}/approve`, {
+      await fetch(`https://backend-repo-teal.vercel.app//api/admin/upgrade-requests/${reqId}/approve`, {
         method:'PUT', headers,
       });
       // Refresh
       const [sRes, rRes] = await Promise.all([
-        fetch('https://backend-repo-hiaw.onrender.com/api/admin/subscriptions', { headers }),
-        fetch('https://backend-repo-hiaw.onrender.com/api/admin/upgrade-requests', { headers }),
+        fetch('https://backend-repo-teal.vercel.app//api/admin/subscriptions', { headers }),
+        fetch('https://backend-repo-teal.vercel.app//api/admin/upgrade-requests', { headers }),
       ]);
       setData(await sRes.json());
       setReqs((await rRes.json()).requests || []);
@@ -3461,10 +3461,10 @@ function AdminSubs() {
     if (!window.confirm('Reject this upgrade request?')) return;
     setAct(reqId + '-rej');
     try {
-      await fetch(`https://backend-repo-hiaw.onrender.com/api/admin/upgrade-requests/${reqId}/reject`, {
+      await fetch(`https://backend-repo-teal.vercel.app//api/admin/upgrade-requests/${reqId}/reject`, {
         method:'PUT', headers,
       });
-      const rRes = await fetch('https://backend-repo-hiaw.onrender.com/api/admin/upgrade-requests', { headers });
+      const rRes = await fetch('https://backend-repo-teal.vercel.app//api/admin/upgrade-requests', { headers });
       setReqs((await rRes.json()).requests || []);
     } catch(err) { console.error(err); }
     finally { setAct(null); }
@@ -3727,7 +3727,7 @@ function AdminUsage() {
   useEffect(() => {
     (async () => {
       try {
-        const res  = await fetch('https://backend-repo-hiaw.onrender.com/api/admin/usage', { headers });
+        const res  = await fetch('https://backend-repo-teal.vercel.app//api/admin/usage', { headers });
         const json = await res.json();
         setData(json);
       } catch(err) { console.error(err); }
@@ -3868,7 +3868,7 @@ function BillingModal({ onClose, onSuccess, initialCycle, initialStep }) {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res   = await fetch('https://backend-repo-hiaw.onrender.com/api/premium/request-upgrade', {
+      const res   = await fetch('https://backend-repo-teal.vercel.app//api/premium/request-upgrade', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body:    JSON.stringify({ billingCycle: cycle, gcashRef: refCode.trim(), gcashNumber: gcashNum, gcashName: name }),
@@ -4214,7 +4214,7 @@ function CancelSubscriptionModal({ subscription, onClose, onCancelled }) {
     setLoading(true); setError('');
     try {
       const token = localStorage.getItem('token');
-      const res   = await fetch('https://backend-repo-hiaw.onrender.com/api/premium/cancel-subscription', {
+      const res   = await fetch('https://backend-repo-teal.vercel.app//api/premium/cancel-subscription', {
         method:  'POST',
         headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
       });
