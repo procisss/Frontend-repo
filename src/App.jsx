@@ -2910,7 +2910,7 @@ function Profile() {
       const data = await res.json();
       if (!res.ok) return alert(data.message || 'Failed to delete account.');
       localStorage.removeItem('token');
-      window.location.reload();
+      window.location.href = window.location.origin;
     } catch {
       alert('Cannot connect to server.');
     }
