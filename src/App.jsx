@@ -3057,8 +3057,8 @@ function AdminLogin({ onBack, onLogin }) {
         <div style={{background:"#fff",borderRadius:16,padding:"32px 36px",width:360}}>
           <div style={{fontWeight:700,fontSize:18,marginBottom:4}}>Admin Login</div>
           <div style={{fontSize:13,color:COLORS.gray500,marginBottom:20}}>Access the ProCIS platform management dashboard</div>
-          <div style={{marginBottom:14}}><label style={{fontSize:12,fontWeight:500,color:COLORS.gray600,display:"block",marginBottom:6}}>Admin Email</label><input style={styles.input} placeholder="admin@procis.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
-          <div style={{marginBottom:20}}><label style={{fontSize:12,fontWeight:500,color:COLORS.gray600,display:"block",marginBottom:6}}>Password</label><input style={styles.input} type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)}/></div>
+          <div style={{marginBottom:14}}><label style={{fontSize:12,fontWeight:500,color:COLORS.gray600,display:"block",marginBottom:6}}>Admin Email</label><input style={styles.input} placeholder="User" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+          <div style={{marginBottom:20}}><label style={{fontSize:12,fontWeight:500,color:COLORS.gray600,display:"block",marginBottom:6}}>Password</label><input style={styles.input} type="password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)}/></div>
           {error&&<div style={{color:COLORS.red,fontSize:12,marginBottom:10,textAlign:"center"}}>{error}</div>}
           <button style={{...styles.btnPrimary,width:"100%",justifyContent:"center",padding:"11px"}} onClick={handleAdminLogin}>Sign in as Admin</button>
           <div style={{textAlign:"center",marginTop:14}}><span style={{color:COLORS.green,cursor:"pointer",fontSize:13}} onClick={onBack}>🍽️ Back to User log in</span></div>
