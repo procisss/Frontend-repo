@@ -2898,7 +2898,27 @@ function Profile() {
             <div style={{fontWeight:700,fontSize:15,marginBottom:14}}>⚡ Quick Actions</div>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <button style={{...styles.btnGray,width:"100%",textAlign:"left",padding:"10px 14px"}}>✉️ Email Support</button>
-              <button style={{background:COLORS.redLight,color:COLORS.red,border:`1px solid ${COLORS.redLight}`,borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",textAlign:"left"}}>🗑️ Delete Account</button>
+              <button
+  onClick={async () => {
+    if (!window.confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res   = await fetch('http://localhost:3000/api/auth/delete-account', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.message || 'Failed to delete account.');
+      localStorage.removeItem('token');
+      window.location.reload();
+    } catch {
+      alert('Cannot connect to server.');
+    }
+  }}
+  style={{background:COLORS.redLight,color:COLORS.red,border:`1px solid ${COLORS.redLight}`,borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",textAlign:"left",width:"100%"}}
+>
+  🗑️ Delete Account
+</button>
             </div>
           </div>
         </div>
