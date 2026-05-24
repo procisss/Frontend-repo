@@ -2903,7 +2903,7 @@ function Profile() {
     if (!window.confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
     try {
       const token = localStorage.getItem('token');
-      const res   = await fetch('http://localhost:3000/api/auth/delete-account', {
+      const res   = await fetch('https://backend-repo-psi.vercel.app/api/auth/delete-account', {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
