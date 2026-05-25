@@ -2979,7 +2979,7 @@ function Sidebar({ page, setPage, onLogout, alertCount }) {
       </div>
       <div style={styles.sidebarNav}>
         {navItems.map(item=>(
-          <div key={item.id} style={styles.navItem(page===item.id)} onClick={()=>setPage(item.id)}>
+          <div key={item.id} style={styles.navItem(page===item.id)} onClick={()=>{ setPage(item.id); localStorage.setItem('page', item.id); }}>
             <span style={styles.navIcon}>{item.icon}</span>
             <span style={{flex:1}}>{item.label}</span>
             {item.badge==="NEW" && (
@@ -2994,7 +2994,7 @@ function Sidebar({ page, setPage, onLogout, alertCount }) {
         ))}
       </div>
       <div style={styles.sidebarBottom}>
-        <div style={styles.navItem(page==="profile")} onClick={()=>setPage("profile")}><span style={styles.navIcon}>👤</span><span>Profile</span></div>
+        <div style={styles.navItem(page==="profile")} onClick={()=>{ setPage("profile"); localStorage.setItem('page', 'profile'); }}><span style={styles.navIcon}>👤</span><span>Profile</span></div>
         <div style={styles.navItem(false)} onClick={onLogout}><span style={styles.navIcon}>🚪</span><span>Logout</span></div>
       </div>
     </div>
@@ -3003,8 +3003,8 @@ function Sidebar({ page, setPage, onLogout, alertCount }) {
 
 // ── Main App ──
 export default function App() {
-  const [screen, setScreen]       = useState("login");
-  const [page, setPage]           = useState("dashboard");
+  const [screen, setScreen] = useState(() => localStorage.getItem('screen') || "login");
+  const [page, setPage]     = useState(() => localStorage.getItem('page') || "dashboard");
   const [alertCount, setAlertCount] = useState(0);
 
   // Fetch alert count whenever user is in the app
@@ -3026,10 +3026,10 @@ export default function App() {
     return () => clearInterval(interval);
   }, [screen]);
 
-  if(screen==="login") return <LoginPage onLogin={()=>setScreen("app")} onSignup={()=>setScreen("signup")} onAdmin={()=>setScreen("adminLogin")}/>;
-  if(screen==="signup") return <SignupPage onBack={()=>setScreen("login")}/>;
-  if(screen==="adminLogin") return <AdminLogin onBack={()=>setScreen("login")} onLogin={()=>setScreen("admin")}/>;
-  if(screen==="admin") return <AdminApp onLogout={()=>setScreen("login")}/>;
+  if(screen==="login") return <LoginPage onLogin={()=>{ setScreen("app"); localStorage.setItem('screen','app'); }} onSignup={()=>{ setScreen("signup"); localStorage.setItem('screen','signup'); }} onAdmin={()=>{ setScreen("adminLogin"); localStorage.setItem('screen','adminLogin'); }}/>;
+  if(screen==="signup") return <SignupPage onBack={()=>{ setScreen("login"); localStorage.setItem('screen','login'); }}/>;
+  if(screen==="adminLogin") return <AdminLogin onBack={()=>{ setScreen("login"); localStorage.setItem('screen','login'); }} onLogin={()=>{ setScreen("admin"); localStorage.setItem('screen','admin'); }}/>;
+  if(screen==="admin") return <AdminApp onLogout={()=>{ setScreen("login"); localStorage.removeItem('screen'); localStorage.removeItem('page'); }}/>;
 
   const pageMap = {
     dashboard:<Dashboard/>, inventory:<Inventory/>, recipes:<Recipes/>,
@@ -3045,7 +3045,7 @@ export default function App() {
 
   return (
     <div style={styles.app}>
-      <Sidebar page={page} setPage={setPage} alertCount={alertCount} onLogout={()=>{ localStorage.removeItem('token'); setScreen("login"); }}/>
+      <Sidebar page={page} setPage={setPage} alertCount={alertCount} onLogout={()=>{ localStorage.removeItem('token'); localStorage.removeItem('screen'); localStorage.removeItem('page'); setScreen("login"); }}/>
       <div style={styles.main}>
         <div style={styles.content}>{pageMap[page]||<Dashboard/>}</div>
       </div>
