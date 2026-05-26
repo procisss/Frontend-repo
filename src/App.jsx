@@ -1077,6 +1077,217 @@ function SuccessModal({ order, onClose }) {
   );
 }
 
+// ── Product Inventory Modal ──
+function ProductInventoryModal({ editItem, form, setForm, recipes, formError, saving, onSave, onClose }) {
+  const units = ['pcs','kg','g','L','mL','box','pack','tray','dozen'];
+  const categories = ['Main Dish','Sides','Appetizers','Beverages','Desserts','Others'];
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
+      <div style={{background:COLORS.white,borderRadius:14,padding:'28px 32px',width:480,boxShadow:'0 8px 40px rgba(0,0,0,0.18)'}}>
+        <div style={{fontWeight:700,fontSize:17,marginBottom:20,color:COLORS.gray900}}>
+          {editItem ? '✏️ Edit Product Stock' : '➕ Add Product Stock'}
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>
+          <div>
+            <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Link to Product (optional)</label>
+            <select style={{...styles.input,cursor:'pointer'}} value={form.recipeId||''} onChange={e=>{
+              const rid = e.target.value;
+              if (rid) {
+                const r = recipes.find(x=>String(x.id)===String(rid));
+                if (r) setForm(f=>({...f, recipeId:rid, name:r.name, category:r.category||'General'}));
+              } else {
+                setForm(f=>({...f, recipeId:''}));
+              }
+            }}>
+              <option value=''>— None (manual entry) —</option>
+              {recipes.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Product Name *</label>
+            <input style={styles.input} placeholder="e.g. Chicken Adobo, Lumpia" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div>
+              <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Category</label>
+              <select style={{...styles.input,cursor:'pointer'}} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
+                <option value=''>Select category</option>
+                {categories.map(c=><option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Unit *</label>
+              <select style={{...styles.input,cursor:'pointer'}} value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}>
+                {units.map(u=><option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div>
+              <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Quantity On Hand *</label>
+              <input style={styles.input} type="number" min="0" placeholder="0" value={form.quantity} onChange={e=>setForm(f=>({...f,quantity:e.target.value}))}/>
+            </div>
+            <div>
+              <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Min Stock (alert)</label>
+              <input style={styles.input} type="number" min="0" placeholder="0" value={form.minStock} onChange={e=>setForm(f=>({...f,minStock:e.target.value}))}/>
+            </div>
+          </div>
+        </div>
+        {formError && <div style={{color:COLORS.red,fontSize:12,marginBottom:12,background:COLORS.redLight,padding:'8px 12px',borderRadius:8}}>{formError}</div>}
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+          <button style={styles.btnGray} onClick={onClose}>Cancel</button>
+          <button style={{...styles.btnPrimary,opacity:saving?0.7:1}} onClick={onSave} disabled={saving}>
+            {saving ? 'Saving...' : editItem ? 'Save Changes' : 'Add Stock'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Product Inventory Page ──
+function ProductInventory() {
+  const [items, setItems]         = useState([]);
+  const [recipes, setRecipes]     = useState([]);
+  const [search, setSearch]       = useState('');
+  const [loading, setLoading]     = useState(true);
+  const [totalOnHand, setTOH]    = useState(0);
+  const [lowCount, setLow]        = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [editItem, setEditItem]   = useState(null);
+  const [deleting, setDeleting]   = useState(null);
+  const [form, setForm]           = useState({ name:'', category:'General', quantity:'', unit:'pcs', minStock:'', recipeId:'' });
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving]       = useState(false);
+
+  const token   = localStorage.getItem('token');
+  const headers = { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` };
+
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const [piRes, rRes] = await Promise.all([
+        fetch('https://backend-repo-psi.vercel.app/api/product-inventory', { headers }),
+        fetch('https://backend-repo-psi.vercel.app/api/recipes', { headers }),
+      ]);
+      const piData = await piRes.json();
+      const rData  = await rRes.json();
+      setItems(piData.items || []);
+      setTOH(piData.totalOnHand || 0);
+      setLow(piData.lowStockCount || 0);
+      setRecipes(rData.recipes || []);
+    } catch(err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const openAdd = () => {
+    setEditItem(null);
+    setForm({ name:'', category:'General', quantity:'', unit:'pcs', minStock:'', recipeId:'' });
+    setFormError('');
+    setShowModal(true);
+  };
+
+  const openEdit = (item) => {
+    setEditItem(item);
+    setForm({ name:item.name, category:item.category||'General', quantity:String(item.quantity), unit:item.unit, minStock:String(item.min_stock||0), recipeId:item.recipe_id ? String(item.recipe_id) : '' });
+    setFormError('');
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name) return setFormError('Product name is required.');
+    if (!form.quantity || parseFloat(form.quantity) < 0) return setFormError('Enter a valid quantity.');
+    setSaving(true); setFormError('');
+    try {
+      const url    = editItem ? `https://backend-repo-psi.vercel.app/api/product-inventory/${editItem.id}` : 'https://backend-repo-psi.vercel.app/api/product-inventory';
+      const method = editItem ? 'PUT' : 'POST';
+      const res    = await fetch(url, { method, headers, body: JSON.stringify(form) });
+      const data   = await res.json();
+      if (!res.ok) return setFormError(data.message || 'Failed to save.');
+      setShowModal(false); fetchAll();
+    } catch { setFormError('Cannot connect to server.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this product stock entry?')) return;
+    setDeleting(id);
+    try { await fetch(`https://backend-repo-psi.vercel.app/api/product-inventory/${id}`, { method:'DELETE', headers }); fetchAll(); }
+    finally { setDeleting(null); }
+  };
+
+  const statusColor = s => s==='good' ? 'green' : s==='low' ? 'orange' : 'red';
+  const statusLabel = s => s==='good' ? 'In Stock' : s==='low' ? 'Low Stock' : 'Critical';
+  const filtered    = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div>
+      {showModal && <ProductInventoryModal editItem={editItem} form={form} setForm={setForm} recipes={recipes} formError={formError} saving={saving} onSave={handleSave} onClose={()=>setShowModal(false)}/>}
+
+      <div style={{...styles.row,justifyContent:'space-between',marginBottom:8}}>
+        <div>
+          <div style={styles.pageTitle}>Product Inventory</div>
+          <div style={styles.pageSub}>Manually track pre-made products on hand</div>
+        </div>
+        <button style={styles.btnPrimary} onClick={openAdd}>+ Add Product Stock</button>
+      </div>
+
+      <div style={styles.grid3}>
+        <div style={styles.statCard}><div style={styles.statLabel}>Total Products</div><div style={styles.statValue}>{items.length}</div><div style={styles.statSub}>Tracked in inventory</div></div>
+        <div style={styles.statCard}><div style={styles.statLabel}>Total On Hand</div><div style={{...styles.statValue,color:COLORS.green}}>{totalOnHand}</div><div style={styles.statSub}>Units across all products</div></div>
+        <div style={styles.statCard}><div style={styles.statLabel}>Low Stock Alerts</div><div style={{...styles.statValue,color:COLORS.red}}>{lowCount}</div><div style={styles.statSub}>Products need attention</div></div>
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.searchWrap}>
+          <span style={styles.searchIcon}>🔍</span>
+          <input style={styles.searchInput} placeholder="Search products..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+        {loading ? (
+          <div style={{textAlign:'center',padding:'40px 0',color:COLORS.gray400}}>Loading product inventory...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{textAlign:'center',padding:'40px 0',color:COLORS.gray400}}>
+            {items.length === 0 ? 'No products tracked yet. Click "+ Add Product Stock" to get started.' : 'No products match your search.'}
+          </div>
+        ) : (
+          <div style={styles.tableWrap}>
+            <table style={styles.table}>
+              <thead>
+                <tr>{['Product','Category','On Hand','Unit','Min Stock','Status','Actions'].map(h=><th key={h} style={styles.th}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {filtered.map(item=>(
+                  <tr key={item.id}>
+                    <td style={styles.td}>
+                      <span style={{fontWeight:500}}>{item.name}</span>
+                      {item.selling_price > 0 && <div style={{fontSize:11,color:COLORS.gray400}}>₱{parseFloat(item.selling_price).toFixed(2)}</div>}
+                    </td>
+                    <td style={styles.td}>{item.category||'General'}</td>
+                    <td style={styles.td}><span style={{fontWeight:700,color:item.quantity<=0?COLORS.red:COLORS.gray900}}>{item.quantity}</span></td>
+                    <td style={styles.td}>{item.unit}</td>
+                    <td style={styles.td}>{item.min_stock}</td>
+                    <td style={styles.td}><span style={styles.tag(statusColor(item.status))}>{statusLabel(item.status)}</span></td>
+                    <td style={styles.td}>
+                      <div style={{display:'flex',gap:6}}>
+                        <button style={{...styles.btnOutline,padding:'4px 10px',fontSize:12}} onClick={()=>openEdit(item)}>Edit</button>
+                        <button style={{background:COLORS.redLight,color:COLORS.red,border:'none',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer',opacity:deleting===item.id?0.6:1}} onClick={()=>handleDelete(item.id)} disabled={deleting===item.id}>
+                          {deleting===item.id?'...':'Delete'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── POS ──
 function POS() {
   const { limits } = useLimits();
@@ -2907,6 +3118,7 @@ function AdminUserActions({ user, onRefresh }) {
 const navItems = [
   {id:"dashboard",label:"Dashboard",icon:"📊"},
   {id:"inventory",label:"Ingredients Inventory",icon:"📦"},
+  {id:"productInventory",label:"Product Inventory",icon:"🏭"},
   {id:"recipes",label:"Products",icon:"📖"},
   {id:"pos",label:"Sales / POS",icon:"🛒"},
   {id:"purchases",label:"Purchases",icon:"🛍️"},
@@ -2977,7 +3189,7 @@ export default function App() {
   if(screen==="admin") return <AdminApp onLogout={()=>{ setScreen("login"); localStorage.removeItem('screen'); localStorage.removeItem('page'); }}/>;
 
   const pageMap = {
-    dashboard:<Dashboard/>, inventory:<Inventory/>, recipes:<Recipes/>,
+    dashboard:<Dashboard/>, inventory:<Inventory/>, productInventory:<ProductInventory/>, recipes:<Recipes/>,
     pos:<POS/>, purchases:<Purchases/>, analytics:<Analytics/>,
     alerts:<Alerts onAlertChange={()=>{
       // Refresh badge when alerts page changes something
