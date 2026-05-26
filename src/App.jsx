@@ -794,21 +794,11 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
           </div>
           <div>
             <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Selling Price *</label>
-            <div style={{display:'flex',gap:6}}>
-              <div style={{position:'relative',flex:'0 0 80px'}}>
-                <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:COLORS.gray500,fontSize:13}}>₱</span>
-                <input style={{...styles.input,paddingLeft:22}} type="number" min="0" step="0.01" placeholder="50"
-                  value={form.sellingPrice} onChange={e=>setForm(f=>({...f,sellingPrice:e.target.value}))}/>
-              </div>
-              <span style={{display:'flex',alignItems:'center',color:COLORS.gray500,fontSize:13,fontWeight:500}}>/</span>
-              <input style={{...styles.input,flex:1}} placeholder="e.g. 3pcs, 12oz, 1L"
-                value={form.sellingUnit} onChange={e=>setForm(f=>({...f,sellingUnit:e.target.value}))}/>
+            <div style={{position:'relative'}}>
+              <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:COLORS.gray500,fontSize:13}}>₱</span>
+              <input style={{...styles.input,paddingLeft:22}} type="number" min="0" step="0.01" placeholder="50"
+                value={form.sellingPrice} onChange={e=>setForm(f=>({...f,sellingPrice:e.target.value}))}/>
             </div>
-            {form.sellingPrice && form.sellingUnit && (
-              <div style={{marginTop:6,fontSize:12,color:COLORS.greenDark,fontWeight:600}}>
-                Preview: ₱{form.sellingPrice} / {form.sellingUnit}
-              </div>
-            )}
           </div>
           <div style={{gridColumn:'span 2'}}>
             <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Description (optional)</label>
@@ -817,7 +807,7 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
           </div>
         </div>
 
-        <div style={{fontWeight:600,fontSize:14,color:COLORS.gray800,marginBottom:10}}>Ingredients Used</div>
+        <div style={{fontWeight:600,fontSize:14,color:COLORS.gray800,marginBottom:10}}>Ingredients Used (Optional)</div>
         <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 28px',gap:8,marginBottom:6}}>
           {['Ingredient','Quantity','Unit',''].map((h,i)=><div key={i} style={{fontSize:11,color:COLORS.gray500,fontWeight:500}}>{h}</div>)}
         </div>
@@ -900,7 +890,7 @@ function Recipes() {
     }
     setEditItem(null);
     setForm({ name:'', category:'', sellingPrice:'', sellingUnit:'', description:'' });
-    setIngredients([{ inventoryId:'', name:'', quantity:'', unit:'pcs', isManual:false }]);
+    setIngredients([]);
     setFormError('');
     setShowModal(true);
   };
@@ -914,15 +904,18 @@ function Recipes() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.category) return setFormError('Recipe name and category are required.');
+    if (!form.name || !form.category) return setFormError('Product name and category are required.');
     if (!form.sellingPrice || parseFloat(form.sellingPrice) <= 0) return setFormError('Please enter a valid selling price.');
-    if (!form.sellingUnit) return setFormError('Please enter a selling unit (e.g. 3pcs, 12oz).');
-    if (ingredients.length === 0 || ingredients.some(i => !i.name || !i.quantity)) return setFormError('All ingredients need a name and quantity.');
+    
+    const validIngredients = ingredients.filter(i => (i.name && i.name.trim() !== '') || i.inventoryId !== '');
+    if (validIngredients.some(i => !i.name || !i.quantity)) return setFormError('All added ingredients need a name and quantity.');
+    
     setSaving(true); setFormError('');
     try {
       const url    = editItem ? `https://backend-repo-psi.vercel.app/api/recipes/${editItem.id}` : 'https://backend-repo-psi.vercel.app/api/recipes';
       const method = editItem ? 'PUT' : 'POST';
-      const res    = await fetch(url, { method, headers, body: JSON.stringify({ ...form, ingredients }) });
+      const payload = { ...form, sellingUnit: 'pcs', ingredients: validIngredients };
+      const res    = await fetch(url, { method, headers, body: JSON.stringify(payload) });
       const data   = await res.json();
       if (!res.ok) return setFormError(data.message || 'Failed to save.');
       setShowModal(false); fetchAll();
@@ -1339,6 +1332,7 @@ function POS() {
     });
   };
   const changeQty = (id, delta) => setOrder(prev=>prev.map(o=>o.id===id?{...o,qty:Math.max(0,o.qty+delta)}:o).filter(o=>o.qty>0));
+  const setItemQty = (id, qty) => setOrder(prev=>prev.map(o=>o.id===id?{...o,qty:Math.max(0,qty)}:o).filter(o=>o.qty>0));
   const removeItem = (id) => setOrder(prev=>prev.filter(o=>o.id!==id));
   const clearOrder = () => setOrder([]);
   const subtotal = order.reduce((sum,o)=>sum+o.selling_price*o.qty, 0);
@@ -1410,7 +1404,12 @@ function POS() {
                   {items.map(p=>{
                     const inCart=order.find(o=>o.id===p.id);
                     return (
-                      <div key={p.id} onClick={()=>addItem(p)} style={{...styles.card,cursor:'pointer',textAlign:'center',padding:'16px 12px',border:`2px solid ${inCart?COLORS.green:COLORS.gray200}`,background:inCart?COLORS.greenLight:COLORS.white,transition:'all 0.15s'}}>
+                      <div key={p.id} onClick={()=> p.stock_on_hand===0 ? null : addItem(p)} style={{...styles.card,cursor:p.stock_on_hand===0?'not-allowed':'pointer',textAlign:'center',padding:'16px 12px',border:`2px solid ${inCart?COLORS.green:COLORS.gray200}`,background:inCart?COLORS.greenLight:COLORS.white,opacity:p.stock_on_hand===0?0.5:1,transition:'all 0.15s',position:'relative'}}>
+                        {p.stock_on_hand >= 0 && (
+                          <div style={{position:'absolute',top:6,right:6,fontSize:10,fontWeight:700,padding:'2px 6px',borderRadius:6,background:p.stock_on_hand===0?COLORS.red:p.stock_on_hand<=p.min_stock?COLORS.orange:COLORS.green,color:COLORS.white}}>
+                            {p.stock_on_hand===0 ? 'Out of Stock' : `${p.stock_on_hand} left`}
+                          </div>
+                        )}
                         <div style={{width:44,height:44,borderRadius:10,background:inCart?COLORS.green:COLORS.gray100,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,margin:'0 auto 8px'}}>{catIcon(p.category)}</div>
                         <div style={{fontWeight:600,fontSize:12,color:COLORS.gray900,marginBottom:3,lineHeight:1.3}}>{p.name}</div>
                         <div style={{fontWeight:700,color:COLORS.green,fontSize:14}}>₱{parseFloat(p.selling_price).toFixed(2)}</div>
@@ -1440,7 +1439,7 @@ function POS() {
                       <div style={{...styles.row,justifyContent:'space-between'}}>
                         <div style={{...styles.row,gap:6}}>
                           <button onClick={()=>changeQty(o.id,-1)} style={{width:24,height:24,borderRadius:6,border:`1px solid ${COLORS.gray200}`,background:COLORS.gray100,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
-                          <span style={{fontWeight:600,minWidth:20,textAlign:'center'}}>{o.qty}</span>
+                          <input type="number" min="0" value={o.qty} onChange={(e)=>setItemQty(o.id, parseInt(e.target.value)||0)} style={{width:36,textAlign:'center',border:`1px solid ${COLORS.gray200}`,borderRadius:6,padding:'2px 0',fontSize:13,fontWeight:600}} />
                           <button onClick={()=>changeQty(o.id,1)} style={{width:24,height:24,borderRadius:6,border:`1px solid ${COLORS.gray200}`,background:COLORS.gray100,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
                         </div>
                         <span style={{fontWeight:700,fontSize:13}}>₱{(o.selling_price*o.qty).toFixed(2)}</span>
