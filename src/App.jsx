@@ -809,20 +809,19 @@ function Inventory() {
 }
 
 // ── Recipe Modal ──
-function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inventoryItems, formError, saving, onSave, onClose }) {
-  const categories = ['Main Dish','Sides','Appetizers','Beverages','Others'];
-  const units      = ['pcs','kg','g','L','mL','oz','pack','bottle','box','sachet'];
+function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, productInventoryItems, ingredientInventoryItems, formError, saving, onSave, onClose }) {
+  const units = ['pcs','kg','g','L','mL','oz','pack','bottle','box','sachet'];
 
-  const addRow = () => setIngredients(prev=>[...prev,{inventoryId:'',name:'',quantity:'',unit:'pcs',isManual:false}]);
+  const addRow = () => setIngredients(prev=>[...prev,{ingredientInventoryId:'',name:'',quantity:'',unit:'pcs',isManual:false}]);
   const removeRow = idx => setIngredients(prev=>prev.filter((_,i)=>i!==idx));
   const updateRow = (idx, field, value) => {
     setIngredients(prev=>prev.map((ing,i)=>{
       if(i!==idx) return ing;
-      if(field==='inventoryId'){
-        if(value==='__manual__') return {...ing,inventoryId:'',name:'',unit:'pcs',isManual:true};
-        if(value==='') return {...ing,inventoryId:'',name:'',unit:'pcs',isManual:false};
-        const inv=inventoryItems.find(it=>String(it.id)===String(value));
-        if(inv) return {...ing,inventoryId:inv.id,name:inv.name,unit:inv.unit,isManual:false};
+      if(field==='ingredientInventoryId'){
+        if(value==='__manual__') return {...ing,ingredientInventoryId:'',name:'',unit:'pcs',isManual:true};
+        if(value==='') return {...ing,ingredientInventoryId:'',name:'',unit:'pcs',isManual:false};
+        const inv=ingredientInventoryItems.find(it=>String(it.id)===String(value));
+        if(inv) return {...ing,ingredientInventoryId:inv.id,name:inv.name,unit:inv.unit,isManual:false};
       }
       return {...ing,[field]:value};
     }));
@@ -841,10 +840,10 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
               value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
           </div>
           <div>
-            <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Category *</label>
-            <select style={{...styles.input,cursor:'pointer'}} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
-              <option value=''>Select category</option>
-              {categories.map(c=><option key={c} value={c}>{c}</option>)}
+            <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Product Used (from inventory)</label>
+            <select style={{...styles.input,cursor:'pointer'}} value={form.productId} onChange={e=>setForm(f=>({...f,productId:e.target.value}))}>
+              <option value=''>— Select product —</option>
+              {productInventoryItems.map(it=><option key={it.id} value={it.id}>{it.name}</option>)}
             </select>
           </div>
           <div>
@@ -872,18 +871,18 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
           </div>
         </div>
 
-        <div style={{fontWeight:600,fontSize:14,color:COLORS.gray800,marginBottom:10}}>Products Used</div>
+        <div style={{fontWeight:600,fontSize:14,color:COLORS.gray800,marginBottom:10}}>Ingredients Used</div>
         <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 28px',gap:8,marginBottom:6}}>
-          {['Product','Quantity','Unit',''].map((h,i)=><div key={i} style={{fontSize:11,color:COLORS.gray500,fontWeight:500}}>{h}</div>)}
+          {['Ingredient','Quantity','Unit',''].map((h,i)=><div key={i} style={{fontSize:11,color:COLORS.gray500,fontWeight:500}}>{h}</div>)}
         </div>
         {ingredients.map((ing,idx)=>(
           <div key={idx} style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 28px',gap:8,marginBottom:8,alignItems:'center'}}>
             {ing.isManual ? (
-              <input style={styles.input} placeholder="Type product name" value={ing.name} onChange={e=>updateRow(idx,'name',e.target.value)}/>
+              <input style={styles.input} placeholder="Type ingredient name" value={ing.name} onChange={e=>updateRow(idx,'name',e.target.value)}/>
             ) : (
-              <select style={{...styles.input,cursor:'pointer'}} value={ing.inventoryId} onChange={e=>updateRow(idx,'inventoryId',e.target.value)}>
-                <option value=''>Pick from inventory</option>
-                {inventoryItems.map(it=><option key={it.id} value={it.id}>{it.name} ({it.unit})</option>)}
+              <select style={{...styles.input,cursor:'pointer'}} value={ing.ingredientInventoryId} onChange={e=>updateRow(idx,'ingredientInventoryId',e.target.value)}>
+                <option value=''>Pick from ingredient inventory</option>
+                {ingredientInventoryItems.map(it=><option key={it.id} value={it.id}>{it.name} ({it.unit})</option>)}
                 <option value='__manual__'>✏️ Type manually...</option>
               </select>
             )}
@@ -899,7 +898,7 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
             <button onClick={()=>removeRow(idx)} style={{background:'transparent',border:'none',cursor:'pointer',color:COLORS.red,fontSize:18,padding:0}}>×</button>
           </div>
         ))}
-        <button onClick={addRow} style={{...styles.btnGray,fontSize:12,marginBottom:20,marginTop:4}}>+ Add Product Row</button>
+        <button onClick={addRow} style={{...styles.btnGray,fontSize:12,marginBottom:20,marginTop:4}}>+ Add Ingredient Row</button>
 
         {formError && <div style={{color:COLORS.red,fontSize:12,marginBottom:12,background:COLORS.redLight,padding:'8px 12px',borderRadius:8}}>{formError}</div>}
         <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
@@ -916,18 +915,19 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
 // ── Recipes Page ──
 function Recipes() {
   const { limits } = useLimits();
-  const [showUpgrade, setShowUpgrade] = useState(false);
-  const [recipes, setRecipes]         = useState([]);
-  const [inventoryItems, setInventory] = useState([]);
-  const [search, setSearch]           = useState('');
-  const [loading, setLoading]         = useState(true);
-  const [showModal, setShowModal]     = useState(false);
-  const [editItem, setEditItem]       = useState(null);
-  const [deleting, setDeleting]       = useState(null);
-  const [form, setForm]               = useState({ name:'', category:'', sellingPrice:'', sellingUnit:'', description:'' });
-  const [ingredients, setIngredients] = useState([]);
-  const [formError, setFormError]     = useState('');
-  const [saving, setSaving]           = useState(false);
+  const [showUpgrade, setShowUpgrade]         = useState(false);
+  const [recipes, setRecipes]                 = useState([]);
+  const [productInventoryItems, setProducts]  = useState([]);
+  const [ingredientInventoryItems, setIngInv] = useState([]);
+  const [search, setSearch]                   = useState('');
+  const [loading, setLoading]                 = useState(true);
+  const [showModal, setShowModal]             = useState(false);
+  const [editItem, setEditItem]               = useState(null);
+  const [deleting, setDeleting]               = useState(null);
+  const [form, setForm]                       = useState({ name:'', productId:'', sellingPrice:'', sellingUnit:'', description:'' });
+  const [ingredients, setIngredients]         = useState([]);
+  const [formError, setFormError]             = useState('');
+  const [saving, setSaving]                   = useState(false);
 
   const token   = localStorage.getItem('token');
   const headers = { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` };
@@ -935,14 +935,17 @@ function Recipes() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [rRes, iRes] = await Promise.all([
-        fetch('https://backend-repo-psi.vercel.app/api/recipes',   { headers }),
-        fetch('https://backend-repo-psi.vercel.app/api/inventory', { headers }),
+      const [rRes, pRes, iRes] = await Promise.all([
+        fetch('https://backend-repo-psi.vercel.app/api/recipes',               { headers }),
+        fetch('https://backend-repo-psi.vercel.app/api/inventory',             { headers }),
+        fetch('https://backend-repo-psi.vercel.app/api/ingredient-inventory',  { headers }),
       ]);
       const rData = await rRes.json();
+      const pData = await pRes.json();
       const iData = await iRes.json();
       setRecipes(rData.recipes || []);
-      setInventory(iData.items || []);
+      setProducts(pData.items || []);
+      setIngInv(iData.items || []);
     } catch (err) { console.error('Failed to load:', err); }
     finally { setLoading(false); }
   };
@@ -954,22 +957,22 @@ function Recipes() {
       setShowUpgrade(true); return;
     }
     setEditItem(null);
-    setForm({ name:'', category:'', sellingPrice:'', sellingUnit:'', description:'' });
-    setIngredients([{ inventoryId:'', name:'', quantity:'', unit:'pcs', isManual:false }]);
+    setForm({ name:'', productId:'', sellingPrice:'', sellingUnit:'', description:'' });
+    setIngredients([{ ingredientInventoryId:'', name:'', quantity:'', unit:'pcs', isManual:false }]);
     setFormError('');
     setShowModal(true);
   };
 
   const openEdit = (recipe) => {
     setEditItem(recipe);
-    setForm({ name:recipe.name, category:recipe.category, sellingPrice:String(recipe.selling_price), sellingUnit:recipe.selling_unit||'', description:recipe.description||'' });
-    setIngredients(recipe.ingredients.map(ing=>({ inventoryId:ing.inventory_id||'', name:ing.name, quantity:String(ing.quantity), unit:ing.unit, isManual:!ing.inventory_id })));
+    setForm({ name:recipe.name, productId:String(recipe.product_id||''), sellingPrice:String(recipe.selling_price), sellingUnit:recipe.selling_unit||'', description:recipe.description||'' });
+    setIngredients(recipe.ingredients.map(ing=>({ ingredientInventoryId:String(ing.ingredient_inventory_id||''), name:ing.name, quantity:String(ing.quantity), unit:ing.unit, isManual:!ing.ingredient_inventory_id })));
     setFormError('');
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.category) return setFormError('Recipe name and category are required.');
+    if (!form.name) return setFormError('Recipe name is required.');
     if (!form.sellingPrice || parseFloat(form.sellingPrice) <= 0) return setFormError('Please enter a valid selling price.');
     if (!form.sellingUnit) return setFormError('Please enter a selling unit (e.g. 3pcs, 12oz).');
     if (ingredients.length === 0 || ingredients.some(i => !i.name || !i.quantity)) return setFormError('All ingredients need a name and quantity.');
@@ -977,7 +980,8 @@ function Recipes() {
     try {
       const url    = editItem ? `https://backend-repo-psi.vercel.app/api/recipes/${editItem.id}` : 'https://backend-repo-psi.vercel.app/api/recipes';
       const method = editItem ? 'PUT' : 'POST';
-      const res    = await fetch(url, { method, headers, body: JSON.stringify({ ...form, ingredients }) });
+      const payload = { name:form.name, productId:form.productId||null, sellingPrice:form.sellingPrice, sellingUnit:form.sellingUnit, description:form.description, ingredients };
+      const res    = await fetch(url, { method, headers, body: JSON.stringify(payload) });
       const data   = await res.json();
       if (!res.ok) return setFormError(data.message || 'Failed to save.');
       setShowModal(false); fetchAll();
@@ -997,7 +1001,7 @@ function Recipes() {
   return (
     <div>
       {showUpgrade && <UpgradeModal reason={`Free accounts can only create up to ${limits.limits.recipes} recipes. Upgrade for unlimited recipes.`} onClose={()=>setShowUpgrade(false)}/>}
-      {showModal && <RecipeModal editItem={editItem} form={form} setForm={setForm} ingredients={ingredients} setIngredients={setIngredients} inventoryItems={inventoryItems} formError={formError} saving={saving} onSave={handleSave} onClose={()=>setShowModal(false)}/>}
+      {showModal && <RecipeModal editItem={editItem} form={form} setForm={setForm} ingredients={ingredients} setIngredients={setIngredients} productInventoryItems={productInventoryItems} ingredientInventoryItems={ingredientInventoryItems} formError={formError} saving={saving} onSave={handleSave} onClose={()=>setShowModal(false)}/>}
 
       <div style={{...styles.row,justifyContent:'space-between',marginBottom:8}}>
         <div>
@@ -1009,7 +1013,7 @@ function Recipes() {
 
       <div style={styles.grid2}>
         <div style={styles.statCard}><div style={styles.statLabel}>Total Recipes</div><div style={styles.statValue}>{recipes.length}</div><div style={styles.statSub}>Active menu items {limits?.isLimited ? `(${limits.usage.recipes}/${limits.limits.recipes} free limit)` : ''}</div></div>
-        <div style={styles.statCard}><div style={styles.statLabel}>Categories</div><div style={styles.statValue}>{[...new Set(recipes.map(r=>r.category))].length}</div><div style={styles.statSub}>Unique categories</div></div>
+        <div style={styles.statCard}><div style={styles.statLabel}>Linked Products</div><div style={styles.statValue}>{recipes.filter(r=>r.product_id).length}</div><div style={styles.statSub}>Recipes with product linked</div></div>
       </div>
 
       <div style={styles.searchWrap}>
@@ -1030,7 +1034,7 @@ function Recipes() {
               <div style={{...styles.row,justifyContent:'space-between',marginBottom:14}}>
                 <div>
                   <div style={{fontWeight:700,fontSize:17,color:COLORS.gray900}}>{r.name}</div>
-                  <span style={{...styles.badge(COLORS.gray600,COLORS.gray100),marginTop:4}}>{r.category}</span>
+                  {r.product_name && <span style={{...styles.badge(COLORS.blue,COLORS.blueLight),marginTop:4}}>📦 {r.product_name}</span>}
                   {r.description && <div style={{fontSize:12,color:COLORS.gray500,marginTop:4}}>{r.description}</div>}
                 </div>
                 <div style={{textAlign:'right'}}>
@@ -1038,7 +1042,7 @@ function Recipes() {
                   <div style={{fontSize:12,color:COLORS.gray500}}>per {r.selling_unit||'pcs'}</div>
                 </div>
               </div>
-              <div style={{fontWeight:600,fontSize:13,color:COLORS.gray700,marginBottom:8}}>Products Used</div>
+              <div style={{fontWeight:600,fontSize:13,color:COLORS.gray700,marginBottom:8}}>Ingredients Used</div>
               {r.ingredients.length === 0 ? (
                 <div style={{fontSize:13,color:COLORS.gray400}}>No ingredients listed.</div>
               ) : r.ingredients.map((ing,j)=>(
@@ -2958,10 +2962,204 @@ function AdminUserActions({ user, onRefresh }) {
   );
 }
 
+// ── Ingredient Inventory Modal ──
+function IngredientInventoryModal({ editItem, form, setForm, formError, saving, onSave, onClose }) {
+  const categories = ['Meat','Seafood','Vegetables','Fruits','Dairy','Grains','Spices','Condiments','Beverages','Others'];
+  const units      = ['pcs','kg','g','L','mL','pack','bottle','box','sachet','tray','oz'];
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
+      <div style={{background:COLORS.white,borderRadius:14,padding:'28px 32px',width:460,boxShadow:'0 8px 40px rgba(0,0,0,0.18)'}}>
+        <div style={{fontWeight:700,fontSize:17,marginBottom:20,color:COLORS.gray900}}>
+          {editItem ? '✏️ Edit Ingredient' : '➕ Add Ingredient'}
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>
+          <div>
+            <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Ingredient Name *</label>
+            <input style={styles.input} placeholder="e.g. Salt, Flour, Chicken Breast"
+              value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div>
+              <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Category</label>
+              <select style={{...styles.input,cursor:'pointer'}} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
+                {categories.map(c=><option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Unit *</label>
+              <select style={{...styles.input,cursor:'pointer'}} value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}>
+                {units.map(u=><option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div>
+              <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Current Stock</label>
+              <input style={styles.input} type="number" min="0" placeholder="0"
+                value={form.quantity} onChange={e=>setForm(f=>({...f,quantity:e.target.value}))}/>
+            </div>
+            <div>
+              <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Min Stock (alert)</label>
+              <input style={styles.input} type="number" min="0" placeholder="0"
+                value={form.minStock} onChange={e=>setForm(f=>({...f,minStock:e.target.value}))}/>
+            </div>
+          </div>
+          <div>
+            <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>
+              Stocking Price (₱) <span style={{color:COLORS.gray400,fontWeight:400}}>— total cost to stock current quantity</span>
+            </label>
+            <input style={styles.input} type="number" min="0" step="0.01" placeholder="e.g. 200.00"
+              value={form.stockPrice} onChange={e=>setForm(f=>({...f,stockPrice:e.target.value}))}/>
+          </div>
+        </div>
+        {formError && <div style={{color:COLORS.red,fontSize:12,marginBottom:12,background:COLORS.redLight,padding:'8px 12px',borderRadius:8}}>{formError}</div>}
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+          <button style={styles.btnGray} onClick={onClose}>Cancel</button>
+          <button style={{...styles.btnPrimary,opacity:saving?0.7:1}} onClick={onSave} disabled={saving}>
+            {saving ? 'Saving...' : editItem ? 'Save Changes' : 'Add Ingredient'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Ingredient Inventory Page ──
+function IngredientInventory() {
+  const [items, setItems]         = useState([]);
+  const [search, setSearch]       = useState('');
+  const [loading, setLoading]     = useState(true);
+  const [totalValue, setTV]       = useState(0);
+  const [lowCount, setLow]        = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [editItem, setEditItem]   = useState(null);
+  const [deleting, setDeleting]   = useState(null);
+  const [form, setForm]           = useState({ name:'', category:'General', quantity:'', unit:'pcs', stockPrice:'', minStock:'' });
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving]       = useState(false);
+
+  const token   = localStorage.getItem('token');
+  const headers = { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` };
+
+  const fetchItems = async () => {
+    setLoading(true);
+    try {
+      const res  = await fetch('https://backend-repo-psi.vercel.app/api/ingredient-inventory', { headers });
+      const data = await res.json();
+      setItems(data.items || []);
+      setTV(data.totalValue || 0);
+      setLow(data.lowStockCount || 0);
+    } catch(err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchItems(); }, []);
+
+  const openAdd = () => {
+    setEditItem(null);
+    setForm({ name:'', category:'General', quantity:'', unit:'pcs', stockPrice:'', minStock:'' });
+    setFormError(''); setShowModal(true);
+  };
+
+  const openEdit = (item) => {
+    setEditItem(item);
+    setForm({ name:item.name, category:item.category||'General', quantity:String(item.quantity), unit:item.unit, stockPrice:String(item.stock_price||0), minStock:String(item.min_stock||0) });
+    setFormError(''); setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name || !form.unit) return setFormError('Name and unit are required.');
+    setSaving(true); setFormError('');
+    try {
+      const url    = editItem ? `https://backend-repo-psi.vercel.app/api/ingredient-inventory/${editItem.id}` : 'https://backend-repo-psi.vercel.app/api/ingredient-inventory';
+      const method = editItem ? 'PUT' : 'POST';
+      const res    = await fetch(url, { method, headers, body: JSON.stringify(form) });
+      const data   = await res.json();
+      if (!res.ok) return setFormError(data.message || 'Failed to save.');
+      setShowModal(false); fetchItems();
+    } catch { setFormError('Cannot connect to server.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this ingredient?')) return;
+    setDeleting(id);
+    try { await fetch(`https://backend-repo-psi.vercel.app/api/ingredient-inventory/${id}`, { method:'DELETE', headers }); fetchItems(); }
+    finally { setDeleting(null); }
+  };
+
+  const statusColor = s => s==='good' ? 'green' : s==='low' ? 'orange' : 'red';
+  const statusLabel = s => s==='good' ? 'In Stock' : s==='low' ? 'Low Stock' : 'Critical';
+  const filtered    = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div>
+      {showModal && <IngredientInventoryModal editItem={editItem} form={form} setForm={setForm} formError={formError} saving={saving} onSave={handleSave} onClose={()=>setShowModal(false)}/>}
+
+      <div style={{...styles.row,justifyContent:'space-between',marginBottom:8}}>
+        <div>
+          <div style={styles.pageTitle}>Ingredient Inventory</div>
+          <div style={styles.pageSub}>Track raw ingredients used in your recipes</div>
+        </div>
+        <button style={styles.btnPrimary} onClick={openAdd}>+ Add Ingredient</button>
+      </div>
+
+      <div style={styles.grid3}>
+        <div style={styles.statCard}><div style={styles.statLabel}>Total Ingredients</div><div style={styles.statValue}>{items.length}</div><div style={styles.statSub}>Tracked ingredients</div></div>
+        <div style={styles.statCard}><div style={styles.statLabel}>Total Stocking Cost</div><div style={{...styles.statValue,color:COLORS.green}}>₱{totalValue.toLocaleString('en-US',{minimumFractionDigits:2})}</div><div style={styles.statSub}>Sum of all stocking prices</div></div>
+        <div style={styles.statCard}><div style={styles.statLabel}>Low Stock Alerts</div><div style={{...styles.statValue,color:COLORS.red}}>{lowCount}</div><div style={styles.statSub}>Ingredients need attention</div></div>
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.searchWrap}>
+          <span style={styles.searchIcon}>🔍</span>
+          <input style={styles.searchInput} placeholder="Search ingredients..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+        {loading ? (
+          <div style={{textAlign:'center',padding:'40px 0',color:COLORS.gray400}}>Loading ingredients...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{textAlign:'center',padding:'40px 0',color:COLORS.gray400}}>
+            {items.length === 0 ? 'No ingredients yet. Click "+ Add Ingredient" to get started.' : 'No ingredients match your search.'}
+          </div>
+        ) : (
+          <div style={styles.tableWrap}>
+            <table style={styles.table}>
+              <thead>
+                <tr>{['Ingredient','Category','Stock','Stocking Price','Min Stock','Status','Actions'].map(h=><th key={h} style={styles.th}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {filtered.map(item=>(
+                  <tr key={item.id}>
+                    <td style={styles.td}><span style={{fontWeight:500}}>{item.name}</span></td>
+                    <td style={styles.td}><span style={styles.badge(COLORS.gray600,COLORS.gray100)}>{item.category}</span></td>
+                    <td style={styles.td}>{item.quantity} {item.unit}</td>
+                    <td style={styles.td}><span style={{fontWeight:600,color:COLORS.green}}>₱{parseFloat(item.stock_price||0).toLocaleString('en-US',{minimumFractionDigits:2})}</span></td>
+                    <td style={styles.td}>{item.min_stock} {item.unit}</td>
+                    <td style={styles.td}><span style={styles.tag(statusColor(item.status))}>{statusLabel(item.status)}</span></td>
+                    <td style={styles.td}>
+                      <div style={{display:'flex',gap:6}}>
+                        <button style={{...styles.btnGray,padding:'5px 10px',fontSize:11}} onClick={()=>openEdit(item)}>Edit</button>
+                        <button style={{background:COLORS.redLight,color:COLORS.red,border:'none',borderRadius:6,padding:'5px 10px',fontSize:11,cursor:'pointer',opacity:deleting===item.id?0.6:1}} onClick={()=>handleDelete(item.id)} disabled={deleting===item.id}>
+                          {deleting===item.id?'...':'Delete'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Sidebar Nav ──
 const navItems = [
   {id:"dashboard",label:"Dashboard",icon:"📊"},
-  {id:"inventory",label:"Inventory",icon:"📦"},
+  {id:"inventory",label:"Product Inventory",icon:"📦"},
+  {id:"ingredientInventory",label:"Ingredient Inv.",icon:"🧂"},
   {id:"recipes",label:"Recipes",icon:"📖"},
   {id:"pos",label:"Sales / POS",icon:"🛒"},
   {id:"purchases",label:"Purchases",icon:"🛍️"},
@@ -3032,7 +3230,7 @@ export default function App() {
   if(screen==="admin") return <AdminApp onLogout={()=>{ setScreen("login"); localStorage.removeItem('screen'); localStorage.removeItem('page'); }}/>;
 
   const pageMap = {
-    dashboard:<Dashboard/>, inventory:<Inventory/>, recipes:<Recipes/>,
+    dashboard:<Dashboard/>, inventory:<Inventory/>, ingredientInventory:<IngredientInventory/>, recipes:<Recipes/>,
     pos:<POS/>, purchases:<Purchases/>, analytics:<Analytics/>,
     alerts:<Alerts onAlertChange={()=>{
       // Refresh badge when alerts page changes something
