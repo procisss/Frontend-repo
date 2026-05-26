@@ -706,8 +706,8 @@ function Inventory() {
     <div>
       
       <div style={{marginBottom:8}}>
-        <div style={styles.pageTitle}>Inventory Tracking</div>
-        <div style={styles.pageSub}>Stock levels are sourced from your Products. Add products there to manage ingredients here.</div>
+        <div style={styles.pageTitle}>Ingredients Inventory</div>
+        <div style={styles.pageSub}>Track and restock your raw ingredients. (Purchases automatically restock these items)</div>
       </div>
 
       <div style={styles.grid3}>
@@ -2823,7 +2823,7 @@ function Profile() {
               {user.plan!=='premium'&&limits?.isLimited&&(
                 <div style={{background:COLORS.gray50,borderRadius:8,padding:'10px 12px',marginBottom:12,fontSize:12}}>
                   <div style={{...styles.row,justifyContent:'space-between',marginBottom:4}}><span style={{color:COLORS.gray600}}>Inventory</span><span style={{fontWeight:600}}>{limits.usage.inventory}/{limits.limits.inventory}</span></div>
-                  <div style={{...styles.row,justifyContent:'space-between',marginBottom:4}}><span style={{color:COLORS.gray600}}>Recipes</span><span style={{fontWeight:600}}>{limits.usage.recipes}/{limits.limits.recipes}</span></div>
+                  <div style={{...styles.row,justifyContent:'space-between',marginBottom:4}}><span style={{color:COLORS.gray600}}>Products</span><span style={{fontWeight:600}}>{limits.usage.recipes}/{limits.limits.recipes}</span></div>
                   <div style={{...styles.row,justifyContent:'space-between'}}><span style={{color:COLORS.gray600}}>POS Orders (this month)</span><span style={{fontWeight:600}}>{limits.usage.posOrders}/{limits.limits.posOrders}</span></div>
                 </div>
               )}
@@ -2901,7 +2901,7 @@ function AdminUserActions({ user, onRefresh }) {
 // ── Sidebar Nav ──
 const navItems = [
   {id:"dashboard",label:"Dashboard",icon:"📊"},
-  {id:"inventory",label:"Inventory",icon:"📦"},
+  {id:"inventory",label:"Ingredients Inventory",icon:"📦"},
   {id:"recipes",label:"Products",icon:"📖"},
   {id:"pos",label:"Sales / POS",icon:"🛒"},
   {id:"purchases",label:"Purchases",icon:"🛍️"},
