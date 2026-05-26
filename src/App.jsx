@@ -1564,7 +1564,7 @@ function Purchases() {
     try {
       const [pRes, iRes] = await Promise.all([
         fetch('https://backend-repo-psi.vercel.app/api/purchases',  { headers }),
-        fetch('https://backend-repo-psi.vercel.app/api/ingredient-inventory',  { headers }),
+        fetch('https://backend-repo-psi.vercel.app/api/inventory',  { headers }),
       ]);
       const pData = await pRes.json();
       const iData = await iRes.json();
