@@ -711,32 +711,37 @@ function Inventory() {
       </div>
 
       <div style={styles.grid3}>
-        <div style={styles.statCard}><div style={styles.statLabel}>Total Products</div><div style={styles.statValue}>{items.length}</div><div style={styles.statSub}>Active products {limits?.isLimited ? `(${limits.usage.inventory}/${limits.limits.inventory} free limit)` : ''}</div></div>
+        <div style={styles.statCard}><div style={styles.statLabel}>Total Ingredients</div><div style={styles.statValue}>{items.length}</div><div style={styles.statSub}>Active ingredients {limits?.isLimited ? `(${limits.usage.inventory}/${limits.limits.inventory} free limit)` : ''}</div></div>
         <div style={styles.statCard}><div style={styles.statLabel}>Total Stocking Cost</div><div style={{...styles.statValue,color:COLORS.green}}>₱{totalValue.toLocaleString('en-US',{minimumFractionDigits:2})}</div><div style={styles.statSub}>Sum of all stocking prices</div></div>
-        <div style={styles.statCard}><div style={styles.statLabel}>Low Stock Alerts</div><div style={{...styles.statValue,color:COLORS.red}}>{lowCount}</div><div style={styles.statSub}>Products need attention</div></div>
+        <div style={styles.statCard}><div style={styles.statLabel}>Low Stock Alerts</div><div style={{...styles.statValue,color:COLORS.red}}>{lowCount}</div><div style={styles.statSub}>Ingredients need attention</div></div>
       </div>
 
       <div style={styles.card}>
         <div style={styles.searchWrap}>
           <span style={styles.searchIcon}>🔍</span>
-          <input style={styles.searchInput} placeholder="Search products..." value={search} onChange={e=>setSearch(e.target.value)}/>
+          <input style={styles.searchInput} placeholder="Search ingredients..." value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
         {loading ? (
           <div style={{textAlign:'center',padding:'40px 0',color:COLORS.gray400}}>Loading inventory...</div>
         ) : filtered.length === 0 ? (
           <div style={{textAlign:'center',padding:'40px 0',color:COLORS.gray400}}>
-            {items.length === 0 ? 'No products yet. Click "+ Add Product" to get started.' : 'No products match your search.'}
+            {items.length === 0 ? 'No ingredients yet. Restock via the Purchases page to add items.' : 'No ingredients match your search.'}
           </div>
         ) : (
           <div style={styles.tableWrap}>
             <table style={styles.table}>
               <thead>
-                <tr>{['Product','Category','Stock','Stocking Price','Min Stock','Status'].map(h=><th key={h} style={styles.th}>{h}</th>)}</tr>
+                <tr>{['Ingredient','Category','Stock','Stocking Price','Min Stock','Status'].map(h=><th key={h} style={styles.th}>{h}</th>)}</tr>
               </thead>
               <tbody>
                 {filtered.map(item=>(
                   <tr key={item.id}>
-                    
+                    <td style={styles.td}><span style={{fontWeight:500}}>{item.name}</span></td>
+                    <td style={styles.td}>{item.category||'General'}</td>
+                    <td style={styles.td}>{item.quantity} {item.unit}</td>
+                    <td style={styles.td}>₱{parseFloat(item.stock_price||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+                    <td style={styles.td}>{item.min_stock} {item.unit}</td>
+                    <td style={styles.td}><span style={styles.tag(statusColor(item.status))}>{statusLabel(item.status)}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -812,14 +817,14 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
           </div>
         </div>
 
-        <div style={{fontWeight:600,fontSize:14,color:COLORS.gray800,marginBottom:10}}>Products Used</div>
+        <div style={{fontWeight:600,fontSize:14,color:COLORS.gray800,marginBottom:10}}>Ingredients Used</div>
         <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 28px',gap:8,marginBottom:6}}>
-          {['Product','Quantity','Unit',''].map((h,i)=><div key={i} style={{fontSize:11,color:COLORS.gray500,fontWeight:500}}>{h}</div>)}
+          {['Ingredient','Quantity','Unit',''].map((h,i)=><div key={i} style={{fontSize:11,color:COLORS.gray500,fontWeight:500}}>{h}</div>)}
         </div>
         {ingredients.map((ing,idx)=>(
           <div key={idx} style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 28px',gap:8,marginBottom:8,alignItems:'center'}}>
             {ing.isManual ? (
-              <input style={styles.input} placeholder="Type product name" value={ing.name} onChange={e=>updateRow(idx,'name',e.target.value)}/>
+              <input style={styles.input} placeholder="Type ingredient name" value={ing.name} onChange={e=>updateRow(idx,'name',e.target.value)}/>
             ) : (
               <select style={{...styles.input,cursor:'pointer'}} value={ing.inventoryId} onChange={e=>updateRow(idx,'inventoryId',e.target.value)}>
                 <option value=''>Pick from inventory</option>
@@ -839,7 +844,7 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
             <button onClick={()=>removeRow(idx)} style={{background:'transparent',border:'none',cursor:'pointer',color:COLORS.red,fontSize:18,padding:0}}>×</button>
           </div>
         ))}
-        <button onClick={addRow} style={{...styles.btnGray,fontSize:12,marginBottom:20,marginTop:4}}>+ Add Product Row</button>
+        <button onClick={addRow} style={{...styles.btnGray,fontSize:12,marginBottom:20,marginTop:4}}>+ Add Ingredient</button>
 
         {formError && <div style={{color:COLORS.red,fontSize:12,marginBottom:12,background:COLORS.redLight,padding:'8px 12px',borderRadius:8}}>{formError}</div>}
         <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
@@ -978,7 +983,7 @@ function Recipes() {
                   <div style={{fontSize:12,color:COLORS.gray500}}>per {r.selling_unit||'pcs'}</div>
                 </div>
               </div>
-              <div style={{fontWeight:600,fontSize:13,color:COLORS.gray700,marginBottom:8}}>Products Used</div>
+              <div style={{fontWeight:600,fontSize:13,color:COLORS.gray700,marginBottom:8}}>Ingredients Used</div>
               {r.ingredients.length === 0 ? (
                 <div style={{fontSize:13,color:COLORS.gray400}}>No ingredients listed.</div>
               ) : r.ingredients.map((ing,j)=>(
@@ -1400,7 +1405,7 @@ function RestockModal({ inventoryItems, onClose, onSaved }) {
               {item.isManual ? (
                 <input
                   style={styles.input}
-                  placeholder="Type product name"
+                  placeholder="Type ingredient name"
                   value={item.name}
                   onChange={e => updateRow(idx, 'name', e.target.value)}
                 />
