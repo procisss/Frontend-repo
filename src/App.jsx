@@ -2762,7 +2762,11 @@ function Alerts({ onAlertChange, onNavigate }) {
       const data = await res.json();
       if (!res.ok) return setFormError(data.message || 'Failed to create.');
       setShowModal(false); fetchAlerts();
-    } catch { setFormError('Cannot connect to server.'); }
+    } catch (err) { 
+      // This will log the actual system exception details to your F12 console inspect log
+      console.error("Submission Error Details:", err); 
+      setFormError(`Connection Error: ${err.message || 'Check terminal logs'}`); 
+    }
     finally { setSaving(false); }
   };
 
