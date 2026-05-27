@@ -845,6 +845,13 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
             </div>
           </div>
           <div>
+            <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Selling Unit *</label>
+            <select style={{...styles.input,cursor:'pointer'}} value={form.sellingUnit} onChange={e=>setForm(f=>({...f,sellingUnit:e.target.value}))}>
+              <option value=''>Select unit</option>
+              {units.map(u=><option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          <div>
             <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Initial Stock</label>
             <input style={styles.input} type="number" min="0" placeholder="0"
               value={form.initialStock} onChange={e=>setForm(f=>({...f,initialStock:e.target.value}))} disabled={!!editItem}/>
@@ -968,7 +975,7 @@ function Recipes() {
     try {
       const url    = editItem ? `https://backend-repo-psi.vercel.app/api/recipes/${editItem.id}` : `https://backend-repo-psi.vercel.app/api/recipes`;
       const method = editItem ? 'PUT' : 'POST';
-      const payload = { ...form, sellingUnit: 'pcs', ingredients: validIngredients };
+      const payload = { ...form, ingredients: validIngredients };
       const res    = await fetch(url, { method, headers, body: JSON.stringify(payload) });
       const data   = await res.json();
       if (!res.ok) return setFormError(data.message || 'Failed to save.');
@@ -2970,21 +2977,52 @@ function Profile() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const { limits } = useLimits();
 
+  const [editBizInfo, setEditBizInfo] = useState(false);
+  const [bizForm, setBizForm] = useState({ businessName: '', ownerName: '' });
+  
+  const [pwdForm, setPwdForm] = useState({ current: '', new: '', confirm: '' });
+  const [pwdMsg, setPwdMsg] = useState({ type: '', text: '' });
+  const [savingPwd, setSavingPwd] = useState(false);
+
+  useEffect(() => {
+    if (user) setBizForm({ businessName: user.businessName || '', ownerName: user.ownerName || '' });
+  }, [user]);
+
   const handleEditProfile = async () => {
-    const newBiz = window.prompt("Enter new Business Name:", user.businessName);
-    if (!newBiz) return;
-    const newOwner = window.prompt("Enter new Owner Name:", user.ownerName || "");
+    if (!editBizInfo) { setEditBizInfo(true); return; }
     try {
       const res = await fetch(`https://backend-repo-psi.vercel.app/api/auth/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ businessName: newBiz, ownerName: newOwner })
+        body: JSON.stringify(bizForm)
       });
       if (!res.ok) throw new Error();
-      setUser({ ...user, businessName: newBiz, ownerName: newOwner });
-      alert("Profile updated successfully!");
+      setUser({ ...user, ...bizForm });
+      setEditBizInfo(false);
     } catch {
       alert("Failed to update profile.");
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!pwdForm.current || !pwdForm.new || !pwdForm.confirm) return setPwdMsg({ type: 'error', text: 'Fill all fields.' });
+    if (pwdForm.new !== pwdForm.confirm) return setPwdMsg({ type: 'error', text: 'New passwords do not match.' });
+    if (pwdForm.new.length < 8) return setPwdMsg({ type: 'error', text: 'Password must be at least 8 characters.' });
+    setSavingPwd(true); setPwdMsg({ type: '', text: '' });
+    try {
+      const res = await fetch(`https://backend-repo-psi.vercel.app/api/auth/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ currentPassword: pwdForm.current, newPassword: pwdForm.new })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update password.');
+      setPwdMsg({ type: 'success', text: 'Password updated successfully!' });
+      setPwdForm({ current: '', new: '', confirm: '' });
+    } catch (err) {
+      setPwdMsg({ type: 'error', text: err.message });
+    } finally {
+      setSavingPwd(false);
     }
   };
 
@@ -3018,24 +3056,34 @@ function Profile() {
           <div style={styles.card}>
             <div style={{...styles.row,justifyContent:"space-between",marginBottom:16}}>
               <div><div style={{fontWeight:700,fontSize:15}}>🏢 Business Information</div><div style={{fontSize:12,color:COLORS.gray500}}>Your food business details</div></div>
-              <button style={styles.btnPrimary} onClick={handleEditProfile}>Edit Profile</button>
+              <button style={{...styles.btnPrimary, background: editBizInfo ? COLORS.green : COLORS.orange}} onClick={handleEditProfile}>{editBizInfo ? 'Save Profile' : 'Edit Profile'}</button>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-              {[{label:"Business Name",value:user.businessName||'—'},{label:"Owner Name",value:user.ownerName||'—'},{label:"Email Address",value:user.email||'—'},{label:"Phone Number",value:user.phone||'—'}].map((f,i)=>(
-                <div key={i}><div style={{fontSize:11,color:COLORS.gray500,marginBottom:6}}>{f.label}</div><div style={{background:COLORS.gray50,border:`1px solid ${COLORS.gray200}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:COLORS.gray700}}>{f.value}</div></div>
-              ))}
-            </div>
+            {editBizInfo ? (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                <div><div style={{fontSize:11,color:COLORS.gray500,marginBottom:6}}>Business Name</div><input style={styles.input} value={bizForm.businessName} onChange={e=>setBizForm(f=>({...f, businessName: e.target.value}))}/></div>
+                <div><div style={{fontSize:11,color:COLORS.gray500,marginBottom:6}}>Owner Name</div><input style={styles.input} value={bizForm.ownerName} onChange={e=>setBizForm(f=>({...f, ownerName: e.target.value}))}/></div>
+                <div><div style={{fontSize:11,color:COLORS.gray500,marginBottom:6}}>Email Address</div><div style={{background:COLORS.gray50,border:`1px solid ${COLORS.gray200}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:COLORS.gray400}}>{user.email||'—'} (Unchangeable)</div></div>
+                <div><div style={{fontSize:11,color:COLORS.gray500,marginBottom:6}}>Phone Number</div><div style={{background:COLORS.gray50,border:`1px solid ${COLORS.gray200}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:COLORS.gray400}}>{user.phone||'—'} (Unchangeable)</div></div>
+              </div>
+            ) : (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                {[{label:"Business Name",value:user.businessName||'—'},{label:"Owner Name",value:user.ownerName||'—'},{label:"Email Address",value:user.email||'—'},{label:"Phone Number",value:user.phone||'—'}].map((f,i)=>(
+                  <div key={i}><div style={{fontSize:11,color:COLORS.gray500,marginBottom:6}}>{f.label}</div><div style={{background:COLORS.gray50,border:`1px solid ${COLORS.gray200}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:COLORS.gray700}}>{f.value}</div></div>
+                ))}
+              </div>
+            )}
           </div>
           <div style={styles.card}>
             <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>🔒 Change Password</div>
             <div style={{fontSize:12,color:COLORS.gray500,marginBottom:16}}>Update your account password</div>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <div><label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:"block",marginBottom:6}}>Current Password</label><input style={styles.input} type="password" placeholder="••••••••"/></div>
+              <div><label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:"block",marginBottom:6}}>Current Password</label><input style={styles.input} type="password" placeholder="••••••••" value={pwdForm.current} onChange={e=>setPwdForm(f=>({...f,current:e.target.value}))}/></div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                <div><label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:"block",marginBottom:6}}>New Password</label><input style={styles.input} type="password" placeholder="••••••••"/></div>
-                <div><label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:"block",marginBottom:6}}>Confirm Password</label><input style={styles.input} type="password" placeholder="••••••••"/></div>
+                <div><label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:"block",marginBottom:6}}>New Password</label><input style={styles.input} type="password" placeholder="••••••••" value={pwdForm.new} onChange={e=>setPwdForm(f=>({...f,new:e.target.value}))}/></div>
+                <div><label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:"block",marginBottom:6}}>Confirm Password</label><input style={styles.input} type="password" placeholder="••••••••" value={pwdForm.confirm} onChange={e=>setPwdForm(f=>({...f,confirm:e.target.value}))}/></div>
               </div>
-              <button style={{...styles.btnPrimary,alignSelf:"flex-start"}} onClick={() => alert('Password update request sent to your email.')}>Update Password</button>
+              {pwdMsg.text && <div style={{fontSize:12,color:pwdMsg.type==='error'?COLORS.red:COLORS.green,background:pwdMsg.type==='error'?COLORS.redLight:COLORS.greenLight,padding:'8px 12px',borderRadius:6}}>{pwdMsg.text}</div>}
+              <button style={{...styles.btnPrimary,alignSelf:"flex-start"}} onClick={handleUpdatePassword} disabled={savingPwd}>{savingPwd ? 'Updating...' : 'Update Password'}</button>
             </div>
           </div>
         </div>
@@ -3067,7 +3115,7 @@ function Profile() {
           <div style={styles.card}>
             <div style={{fontWeight:700,fontSize:15,marginBottom:14}}>⚡ Quick Actions</div>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              <button style={{...styles.btnGray,width:"100%",textAlign:"left",padding:"10px 14px"}} onClick={() => window.location.href="mailto:support@procis.com"}>✉️ Email Support</button>
+              <div style={{background:COLORS.gray50,border:`1px solid ${COLORS.gray200}`,borderRadius:8,padding:"12px 14px",fontSize:13,color:COLORS.gray700}}>✉️ Contact us for support: <strong>admin@gmail.com</strong></div>
               <button
   onClick={async () => {
     if (!window.confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
