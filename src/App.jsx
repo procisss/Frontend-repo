@@ -374,19 +374,22 @@ function Dashboard() {
   const headers = { Authorization: `Bearer ${token}` };
 
   useEffect(() => {
-    (async () => {
+    let mounted = true;
+    const fetchDashboard = async () => {
       try {
         const res  = await fetch(`https://backend-repo-psi.vercel.app/api/dashboard`, { headers });
         if (!res.ok) throw new Error(`Dashboard returned ${res.status}`);
         const json = await res.json();
-        setData(json);
+        if (mounted) setData(json);
       } catch (err) {
         console.error('Dashboard fetch failed:', err);
-        setData(null);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
-    })();
+    };
+    fetchDashboard();
+    const interval = setInterval(fetchDashboard, 10000);
+    return () => { mounted = false; clearInterval(interval); };
   }, []);
 
   const catColors = [COLORS.green, COLORS.orange, COLORS.blue, COLORS.amber, COLORS.red];
@@ -689,6 +692,11 @@ function Inventory() {
   const [loading, setLoading]     = useState(true);
   const [totalValue, setTV]       = useState(0);
   const [lowCount, setLow]        = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [editItem, setEditItem]   = useState(null);
+  const [form, setForm]           = useState({ name:'', category:'', unit:'pcs', quantity:'', minStock:'', stockPrice:'' });
+  const [saving, setSaving]       = useState(false);
+  const [formError, setFormError] = useState('');
 
   const token   = localStorage.getItem('token');
   const headers = { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` };
@@ -707,6 +715,29 @@ function Inventory() {
 
   useEffect(() => { fetchItems(); }, []);
 
+  const openEdit = (item) => {
+    setEditItem(item);
+    setForm({
+      name: item.name, category: item.category, unit: item.unit,
+      quantity: item.quantity, minStock: item.min_stock, stockPrice: item.stock_price
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setFormError(''); setSaving(true);
+    try {
+      const res = await fetch(`https://backend-repo-psi.vercel.app/api/inventory/${editItem.id}`, {
+        method: 'PUT', headers, body: JSON.stringify(form)
+      });
+      const data = await res.json();
+      if (!res.ok) { setFormError(data.message || 'Failed to update.'); setSaving(false); return; }
+      setShowModal(false); fetchItems();
+    } catch {
+      setFormError('Cannot connect to server.');
+    } finally { setSaving(false); }
+  };
+
 
   const statusColor = s => s==='good' ? 'green' : s==='low' ? 'orange' : 'red';
   const statusLabel = s => s==='good' ? 'In Stock' : s==='low' ? 'Low Stock' : 'Critical';
@@ -714,7 +745,7 @@ function Inventory() {
 
   return (
     <div>
-      
+      {showModal && <InventoryModal editItem={editItem} form={form} setForm={setForm} formError={formError} saving={saving} onSave={handleSave} onClose={() => setShowModal(false)} />}
       <div style={{marginBottom:8}}>
         <div style={styles.pageTitle}>Ingredients Inventory</div>
         <div style={styles.pageSub}>Track and restock your raw ingredients. (Purchases automatically restock these items)</div>
@@ -741,7 +772,7 @@ function Inventory() {
           <div style={styles.tableWrap}>
             <table style={styles.table}>
               <thead>
-                <tr>{['Ingredient','Category','Stock','Stocking Price','Min Stock','Status'].map(h=><th key={h} style={styles.th}>{h}</th>)}</tr>
+                <tr>{['Ingredient','Category','Stock','Stocking Price','Min Stock','Status','Action'].map(h=><th key={h} style={styles.th}>{h}</th>)}</tr>
               </thead>
               <tbody>
                 {filtered.map(item=>(
@@ -752,6 +783,9 @@ function Inventory() {
                     <td style={styles.td}>₱{parseFloat(item.stock_price||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
                     <td style={styles.td}>{item.min_stock} {item.unit}</td>
                     <td style={styles.td}><span style={styles.tag(statusColor(item.status))}>{statusLabel(item.status)}</span></td>
+                    <td style={styles.td}>
+                      <button style={{...styles.btnOutline, padding: '4px 8px', fontSize: 11}} onClick={() => openEdit(item)}>Edit</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -809,6 +843,16 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
               <input style={{...styles.input,paddingLeft:22}} type="number" min="0" step="0.01" placeholder="50"
                 value={form.sellingPrice} onChange={e=>setForm(f=>({...f,sellingPrice:e.target.value}))}/>
             </div>
+          </div>
+          <div>
+            <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Initial Stock</label>
+            <input style={styles.input} type="number" min="0" placeholder="0"
+              value={form.initialStock} onChange={e=>setForm(f=>({...f,initialStock:e.target.value}))} disabled={!!editItem}/>
+          </div>
+          <div>
+            <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Min Stock (Alert)</label>
+            <input style={styles.input} type="number" min="0" placeholder="0"
+              value={form.minStock} onChange={e=>setForm(f=>({...f,minStock:e.target.value}))} disabled={!!editItem}/>
           </div>
           <div style={{gridColumn:'span 2'}}>
             <label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:'block',marginBottom:5}}>Description (optional)</label>
@@ -869,7 +913,7 @@ function Recipes() {
   const [showModal, setShowModal]     = useState(false);
   const [editItem, setEditItem]       = useState(null);
   const [deleting, setDeleting]       = useState(null);
-  const [form, setForm]               = useState({ name:'', category:'', sellingPrice:'', sellingUnit:'', description:'' });
+  const [form, setForm]               = useState({ name:'', category:'', sellingPrice:'', sellingUnit:'', description:'', initialStock:'', minStock:'' });
   const [ingredients, setIngredients] = useState([]);
   const [formError, setFormError]     = useState('');
   const [saving, setSaving]           = useState(false);
@@ -899,7 +943,7 @@ function Recipes() {
       setShowUpgrade(true); return;
     }
     setEditItem(null);
-    setForm({ name:'', category:'', sellingPrice:'', sellingUnit:'', description:'' });
+    setForm({ name:'', category:'', sellingPrice:'', sellingUnit:'', description:'', initialStock:'', minStock:'' });
     setIngredients([]);
     setFormError('');
     setShowModal(true);
@@ -907,7 +951,7 @@ function Recipes() {
 
   const openEdit = (recipe) => {
     setEditItem(recipe);
-    setForm({ name:recipe.name, category:recipe.category, sellingPrice:String(recipe.selling_price), sellingUnit:recipe.selling_unit||'', description:recipe.description||'' });
+    setForm({ name:recipe.name, category:recipe.category, sellingPrice:String(recipe.selling_price), sellingUnit:recipe.selling_unit||'', description:recipe.description||'', initialStock:'', minStock:'' });
     setIngredients(recipe.ingredients.map(ing=>({ inventoryId:ing.inventory_id||'', name:ing.name, quantity:String(ing.quantity), unit:ing.unit, isManual:!ing.inventory_id })));
     setFormError('');
     setShowModal(true);
@@ -1232,9 +1276,8 @@ function ProductInventory() {
       <div style={{...styles.row,justifyContent:'space-between',marginBottom:8}}>
         <div>
           <div style={styles.pageTitle}>Product Inventory</div>
-          <div style={styles.pageSub}>Manually track pre-made products on hand</div>
+          <div style={styles.pageSub}>Track pre-made products on hand</div>
         </div>
-        <button style={styles.btnPrimary} onClick={openAdd}>+ Add Product Stock</button>
       </div>
 
       <div style={styles.grid3}>
@@ -1338,11 +1381,12 @@ function POS() {
   const addItem = (product) => {
     setOrder(prev => {
       const existing = prev.find(o=>o.id===product.id);
+      if (existing && existing.stock_on_hand !== null && existing.stock_on_hand !== undefined && existing.qty >= existing.stock_on_hand) return prev;
       return existing ? prev.map(o=>o.id===product.id?{...o,qty:o.qty+1}:o) : [...prev,{...product,qty:1}];
     });
   };
-  const changeQty = (id, delta) => setOrder(prev=>prev.map(o=>o.id===id?{...o,qty:Math.max(0,o.qty+delta)}:o).filter(o=>o.qty>0));
-  const setItemQty = (id, qty) => setOrder(prev=>prev.map(o=>o.id===id?{...o,qty:Math.max(0,qty)}:o).filter(o=>o.qty>0));
+  const changeQty = (id, delta) => setOrder(prev=>prev.map(o=>o.id===id?{...o,qty:Math.max(0, o.stock_on_hand != null ? Math.min(o.qty+delta, o.stock_on_hand) : o.qty+delta)}:o).filter(o=>o.qty>0));
+  const setItemQty = (id, qty) => setOrder(prev=>prev.map(o=>o.id===id?{...o,qty:Math.max(0, o.stock_on_hand != null ? Math.min(qty, o.stock_on_hand) : qty)}:o).filter(o=>o.qty>0));
   const removeItem = (id) => setOrder(prev=>prev.filter(o=>o.id!==id));
   const clearOrder = () => setOrder([]);
   const subtotal = order.reduce((sum,o)=>sum+o.selling_price*o.qty, 0);
@@ -2068,8 +2112,9 @@ function Analytics() {
   const token   = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
  
-  const fetchAnalytics = async (r) => {
-    setLoading(true); setError(null);
+  const fetchAnalytics = async (r, hideLoading=false) => {
+    if (!hideLoading) setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`https://backend-repo-psi.vercel.app/api/analytics?range=${r}`, { headers });
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
@@ -2078,7 +2123,11 @@ function Analytics() {
     finally { setLoading(false); }
   };
  
-  useEffect(() => { fetchAnalytics(range); }, [range]);
+  useEffect(() => {
+    fetchAnalytics(range);
+    const interval = setInterval(() => fetchAnalytics(range, true), 10000);
+    return () => clearInterval(interval);
+  }, [range]);
  
   const handleRangeClick = (id, premiumOnly) => {
     if (premiumOnly && !isPremium) { setShowUpgrade(true); return; }
@@ -2918,7 +2967,26 @@ function Alerts({ onAlertChange }) {
 function Profile() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const { limits } = useLimits();
+
+  const handleEditProfile = async () => {
+    const newBiz = window.prompt("Enter new Business Name:", user.businessName);
+    if (!newBiz) return;
+    const newOwner = window.prompt("Enter new Owner Name:", user.ownerName || "");
+    try {
+      const res = await fetch(`https://backend-repo-psi.vercel.app/api/auth/me`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ businessName: newBiz, ownerName: newOwner })
+      });
+      if (!res.ok) throw new Error();
+      setUser({ ...user, businessName: newBiz, ownerName: newOwner });
+      alert("Profile updated successfully!");
+    } catch {
+      alert("Failed to update profile.");
+    }
+  };
 
   useEffect(()=>{
     (async()=>{
@@ -2937,6 +3005,12 @@ function Profile() {
 
   return (
     <div>
+      {showUpgrade && (
+        <UpgradeModal
+          reason="Upgrade to Premium to unlock unlimited features."
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
       <div style={styles.pageTitle}>Business Profile</div>
       <div style={styles.pageSub}>Manage your business information and account settings</div>
       <div style={styles.grid2}>
@@ -2944,7 +3018,7 @@ function Profile() {
           <div style={styles.card}>
             <div style={{...styles.row,justifyContent:"space-between",marginBottom:16}}>
               <div><div style={{fontWeight:700,fontSize:15}}>🏢 Business Information</div><div style={{fontSize:12,color:COLORS.gray500}}>Your food business details</div></div>
-              <button style={styles.btnPrimary}>Edit Profile</button>
+              <button style={styles.btnPrimary} onClick={handleEditProfile}>Edit Profile</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
               {[{label:"Business Name",value:user.businessName||'—'},{label:"Owner Name",value:user.ownerName||'—'},{label:"Email Address",value:user.email||'—'},{label:"Phone Number",value:user.phone||'—'}].map((f,i)=>(
@@ -2961,7 +3035,7 @@ function Profile() {
                 <div><label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:"block",marginBottom:6}}>New Password</label><input style={styles.input} type="password" placeholder="••••••••"/></div>
                 <div><label style={{fontSize:12,color:COLORS.gray600,fontWeight:500,display:"block",marginBottom:6}}>Confirm Password</label><input style={styles.input} type="password" placeholder="••••••••"/></div>
               </div>
-              <button style={{...styles.btnPrimary,alignSelf:"flex-start"}}>Update Password</button>
+              <button style={{...styles.btnPrimary,alignSelf:"flex-start"}} onClick={() => alert('Password update request sent to your email.')}>Update Password</button>
             </div>
           </div>
         </div>
@@ -2983,7 +3057,7 @@ function Profile() {
                   <div style={{...styles.row,justifyContent:'space-between'}}><span style={{color:COLORS.gray600}}>POS Orders (this month)</span><span style={{fontWeight:600}}>{limits.usage.posOrders}/{limits.limits.posOrders}</span></div>
                 </div>
               )}
-              {user.plan!=='premium'&&<button style={{...styles.btnPrimary,width:"100%",justifyContent:"center"}}>Upgrade to Premium</button>}
+              {user.plan!=='premium'&&<button style={{...styles.btnPrimary,width:"100%",justifyContent:"center"}} onClick={() => setShowUpgrade(true)}>Upgrade to Premium</button>}
             </div>
             <div style={{fontSize:13,color:COLORS.gray600,display:"flex",flexDirection:"column",gap:8}}>
               <div style={styles.row}><span>📅</span><span>Member since: {user.createdAt?new Date(user.createdAt).toLocaleDateString('en-US',{month:'long',year:'numeric'}):'—'}</span></div>
@@ -2993,7 +3067,7 @@ function Profile() {
           <div style={styles.card}>
             <div style={{fontWeight:700,fontSize:15,marginBottom:14}}>⚡ Quick Actions</div>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              <button style={{...styles.btnGray,width:"100%",textAlign:"left",padding:"10px 14px"}}>✉️ Email Support</button>
+              <button style={{...styles.btnGray,width:"100%",textAlign:"left",padding:"10px 14px"}} onClick={() => window.location.href="mailto:support@procis.com"}>✉️ Email Support</button>
               <button
   onClick={async () => {
     if (!window.confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
