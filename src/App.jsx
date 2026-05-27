@@ -800,7 +800,7 @@ function Inventory() {
 // ── Recipe Modal ──
 function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inventoryItems, formError, saving, onSave, onClose }) {
   const categories = ['Main Dish','Sides','Appetizers','Beverages','Others'];
-  const units      = ['pcs','kg','g','L','mL','oz','pack','bottle','box','sachet'];
+  const units      = ['pcs','kg','g','L','mL'];
 
   const addRow = () => setIngredients(prev=>[...prev,{inventoryId:'',name:'',quantity:'',unit:'pcs',isManual:false}]);
   const removeRow = idx => setIngredients(prev=>prev.filter((_,i)=>i!==idx));
@@ -1133,7 +1133,7 @@ function SuccessModal({ order, onClose }) {
 
 // ── Product Inventory Modal ──
 function ProductInventoryModal({ editItem, form, setForm, recipes, formError, saving, onSave, onClose }) {
-  const units = ['pcs','kg','g','L','mL','box','pack','tray','dozen'];
+  const units = ['pcs','kg','g','L','mL'];
   const categories = ['Main Dish','Sides','Appetizers','Beverages','Desserts','Others'];
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
@@ -1559,7 +1559,7 @@ function POS() {
 
 // ── Restock Modal ──
 function RestockModal({ inventoryItems, onClose, onSaved }) {
-  const UNITS = ['pcs', 'kg', 'g', 'L', 'mL', 'pack', 'bottle', 'box', 'sachet', 'tray'];
+  const UNITS = ['pcs', 'kg', 'g', 'L', 'mL'];
 
   const blankRow = () => ({ inventoryId: '', name: '', quantity: '', unit: 'pcs', totalCost: '', isManual: false });
   const [items, setItems]     = useState([blankRow()]);
@@ -3115,7 +3115,7 @@ function Profile() {
           <div style={styles.card}>
             <div style={{fontWeight:700,fontSize:15,marginBottom:14}}>⚡ Quick Actions</div>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              <div style={{background:COLORS.gray50,border:`1px solid ${COLORS.gray200}`,borderRadius:8,padding:"12px 14px",fontSize:13,color:COLORS.gray700}}>✉️ Contact us for support: <strong>admin@gmail.com</strong></div>
+              <div style={{background:COLORS.gray50,border:`1px solid ${COLORS.gray200}`,borderRadius:8,padding:"12px 14px",fontSize:13,color:COLORS.gray700}}>✉️ Contact us for support: <strong>arquitakiert1@gmail.com</strong></div>
               <button
   onClick={async () => {
     if (!window.confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
