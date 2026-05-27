@@ -2713,43 +2713,31 @@ function AlertModal({ form, setForm, saving, formError, onSave, onClose }) {
   );
 }
 
-// ── Alerts Page ──
-function Alerts({ onAlertChange, onNavigate }) {
-  const { limits } = useLimits();
+// ── ALERTS SUB-VIEW COMPONENT ──
+function AlertsView({ 
+  isPremium, 
+  limits, 
+  autoAlerts = [], 
+  manualAlerts = [], 
+  summary = { total: 0, critical: 0, warning: 0, resolved: 0 }, 
+  loading, 
+  fetchAlerts, 
+  onNavigate, 
+  setAlertSearchFilter 
+}) {
+  const [activeTab, setActiveTab] = useState('all');
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const isPremium = limits && !limits.isLimited;
- 
-  const [autoAlerts, setAutoAlerts]     = useState([]);
-  const [manualAlerts, setManualAlerts] = useState([]);
-  const [summary, setSummary]           = useState({ total: 0, critical: 0, warning: 0, resolved: 0 });
-  const [loading, setLoading]           = useState(true);
-  const [activeTab, setActiveTab]       = useState('all');
-  const [alertSearchFilter, setAlertSearchFilter] = useState('');
-  const [showModal, setShowModal]       = useState(false);
-  const [form, setForm]                 = useState({ title: '', message: '', severity: 'warning' });
-  const [formError, setFormError]       = useState('');
-  const [saving, setSaving]             = useState(false);
-  const [actioning, setActioning]       = useState(null);
- 
-  const token   = localStorage.getItem('token');
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
- 
-  const fetchAlerts = async () => {
-    setLoading(true);
-    try {
-      const res  = await fetch('https://backend-repo-psi.vercel.app/api/alerts', { headers });
-      const data = await res.json();
-      setAutoAlerts(data.autoAlerts || []);
-      setManualAlerts(data.manualAlerts || []);
-      setSummary(data.summary || { total: 0, critical: 0, warning: 0, resolved: 0 });
-      if (onAlertChange) onAlertChange();
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+  const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [actioning, setActioning] = useState(null);
+  const [formError, setFormError] = useState('');
+  const [form, setForm] = useState({ title: '', message: '', severity: 'warning' });
+
+  const headers = { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}` 
   };
- 
-  useEffect(() => { fetchAlerts(); }, []);
- 
-  // ── Unified Free & Premium State Logic (No Full Page Interruption Lock) ──
+
   const handleCreate = async () => {
     if (!isPremium) {
       setShowUpgrade(true);
@@ -2761,32 +2749,44 @@ function Alerts({ onAlertChange, onNavigate }) {
       const res  = await fetch('https://backend-repo-psi.vercel.app/api/alerts', { method: 'POST', headers, body: JSON.stringify(form) });
       const data = await res.json();
       if (!res.ok) return setFormError(data.message || 'Failed to create.');
-      setShowModal(false); fetchAlerts();
+      setShowModal(false); 
+      fetchAlerts();
     } catch (err) { 
-      // This will log the actual system exception details to your F12 console inspect log
       console.error("Submission Error Details:", err); 
       setFormError(`Connection Error: ${err.message || 'Check terminal logs'}`); 
+    } finally { 
+      setSaving(false); 
     }
-    finally { setSaving(false); }
   };
 
   const handleResolve = async (id) => {
     setActioning(id);
-    try { await fetch(`https://backend-repo-psi.vercel.app/api/alerts/${id}/resolve`, { method: 'PUT', headers }); fetchAlerts(); }
-    finally { setActioning(null); }
+    try { 
+      await fetch(`https://backend-repo-psi.vercel.app/api/alerts/${id}/resolve`, { method: 'PUT', headers }); 
+      fetchAlerts(); 
+    } catch(e) {
+      console.error(e);
+    } finally { 
+      setActioning(null); 
+    }
   };
   
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this alert?')) return;
     setActioning(id + '-del');
-    try { await fetch(`https://backend-repo-psi.vercel.app/api/alerts/${id}`, { method: 'DELETE', headers }); fetchAlerts(); }
-    finally { setActioning(null); }
+    try { 
+      await fetch(`https://backend-repo-psi.vercel.app/api/alerts/${id}`, { method: 'DELETE', headers }); 
+      fetchAlerts(); 
+    } catch(e) {
+      console.error(e);
+    } finally { 
+      setActioning(null); 
+    }
   };
 
   const activeManual   = manualAlerts.filter(a => a.status === 'active');
   const resolvedManual = manualAlerts.filter(a => a.status === 'resolved');
   
-  // Free tier displays only product inventory low-stock alerts, Premium gets combined lists
   const totalActiveList = isPremium ? [...autoAlerts, ...activeManual] : [...autoAlerts];
 
   const tabData = {
@@ -2805,7 +2805,6 @@ function Alerts({ onAlertChange, onNavigate }) {
   const sevBorder = s => s === 'critical' ? COLORS.redLight : s === 'warning' ? COLORS.amberLight : COLORS.greenLight;
   const sevIcon   = s => s === 'critical' ? '⚠️' : s === 'warning' ? '🔔' : 'ℹ️';
   
-  // Set up visible navigation tabs conditionally based on tier
   const tabs = [
     { id: 'all',      label: `All Active (${totalActiveList.length})` },
     { id: 'critical', label: `Critical (${tabData.critical.length})` },
@@ -2814,7 +2813,7 @@ function Alerts({ onAlertChange, onNavigate }) {
     ...(isPremium ? [
       { id: 'ingredients', label: `Ingredients (${tabData.ingredients.length})` },
       { id: 'manual',   label: `Manual (${activeManual.length})` },
-      { id: 'resolved', label: `Resolved (${summary.resolved})` }
+      { id: 'resolved', label: `Resolved (${summary.resolved || 0})` }
     ] : [])
   ];
 
@@ -2835,12 +2834,12 @@ function Alerts({ onAlertChange, onNavigate }) {
         />
       )}
       
-      <div style={{ ...styles.row, justifyContent: 'space-between', marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 12 }}>
         <div>
           <div style={styles.pageTitle}>Alerts & Notifications</div>
           <div style={styles.pageSub}>Monitor system stock thresholds and custom warnings</div>
         </div>
-        <div style={styles.row}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button style={styles.btnGray} onClick={fetchAlerts}>🔄 Refresh</button>
           <button 
             style={styles.btnPrimary} 
@@ -2859,7 +2858,6 @@ function Alerts({ onAlertChange, onNavigate }) {
         </div>
       </div>
       
-      {/* Dynamic Counter Overview Boxes */}
       <div style={styles.grid4}>
         {[
           { l: 'Active Alerts', v: totalActiveList.length, c: COLORS.orange },
@@ -2874,7 +2872,6 @@ function Alerts({ onAlertChange, onNavigate }) {
         ))}
       </div>
       
-      {/* Standard functional card containing categories */}
       <div style={styles.card}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {tabs.map(t => (
@@ -2888,7 +2885,7 @@ function Alerts({ onAlertChange, onNavigate }) {
           {!isPremium && (
             <span 
               onClick={() => setShowUpgrade(true)}
-              style={{ padding: '6px 14px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: COLORS.orangeLight, color: COLORS.orange, border: '1px dashed ' + COLORS.orange }}
+              style={{ padding: '6px 14px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: COLORS.orangeLight, color: COLORS.orange, border: `1px dashed ${COLORS.orange}` }}
             >
               👑 Unlock Ingredient & Manual Alerts
             </span>
@@ -2912,20 +2909,19 @@ function Alerts({ onAlertChange, onNavigate }) {
                   background: a.status === 'resolved' ? COLORS.gray50 : sevBg(a.severity),
                 }}
               >
-                <div style={{ ...styles.row, justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={styles.row}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 20 }}>{sevIcon(a.severity)}</span>
                     <span style={{ fontWeight: 700, fontSize: 14 }}>{a.title}</span>
                     <span style={styles.tag(sevColor(a.severity))}>{a.severity}</span>
-                    {a.type === 'product' && <span style={{ ...styles.badge(COLORS.amber, COLORS.amberLight), fontSize: 10 }}>Product Stock</span>}
-                    {a.type === 'inventory' && <span style={{ ...styles.badge(COLORS.purple, '#f3e8ff'), fontSize: 10, color: '#6b21a8' }}>Raw Ingredient</span>}
-                    {a.type === 'manual' && <span style={{ ...styles.badge(COLORS.gray600, COLORS.gray100), fontSize: 10 }}>Manual Notification</span>}
+                    {a.type === 'product' && <span style={{ background: COLORS.orangeLight, color: COLORS.orange, padding: '2px 8px', borderRadius: 6, fontSize: 10 }}>Product Stock</span>}
+                    {a.type === 'inventory' && <span style={{ background: '#f3e8ff', color: '#6b21a8', padding: '2px 8px', borderRadius: 6, fontSize: 10 }}>Raw Ingredient</span>}
+                    {a.type === 'manual' && <span style={{ background: COLORS.gray100, color: COLORS.gray600, padding: '2px 8px', borderRadius: 6, fontSize: 10 }}>Manual Notification</span>}
                   </div>
                   {a.createdAt && <span style={{ fontSize: 11, color: COLORS.gray400 }}>{new Date(a.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</span>}
                 </div>
                 {a.message && <p style={{ fontSize: 13, color: COLORS.gray600, marginBottom: 12 }}>{a.message}</p>}
                 
-                {/* Embedded metric dashboard values */}
                 {(a.type === 'inventory' || a.type === 'product') && (
                   <div style={{ background: COLORS.white, border: `1px solid ${COLORS.gray100}`, borderRadius: 8, padding: '10px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                     <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Target Item:</div><div style={{ fontWeight: 600 }}>{a.item}</div></div>
@@ -2935,7 +2931,7 @@ function Alerts({ onAlertChange, onNavigate }) {
                 )}
                 
                 {a.type === 'manual' && a.status === 'active' && isPremium && (
-                  <div style={{ ...styles.row, marginTop: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
                     <button style={styles.btnOutline} onClick={() => handleResolve(a.id)} disabled={actioning === a.id}>✓ Mark as Fixed</button>
                     <button style={{ background: COLORS.redLight, color: COLORS.red, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }} onClick={() => handleDelete(a.id)} disabled={actioning === a.id + '-del'}>Delete</button>
                   </div>
