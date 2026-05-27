@@ -867,7 +867,15 @@ function RecipeModal({ editItem, form, setForm, ingredients, setIngredients, inv
         </div>
         {ingredients.map((ing,idx)=>(
           <div key={idx} style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 28px',gap:8,marginBottom:8,alignItems:'center'}}>
-            
+            {ing.isManual ? (
+              <input style={styles.input} placeholder="Type ingredient name" value={ing.name} onChange={e=>updateRow(idx,'name',e.target.value)}/>
+            ) : (
+              <select style={{...styles.input,cursor:'pointer'}} value={ing.inventoryId} onChange={e=>updateRow(idx,'inventoryId',e.target.value)}>
+                <option value=''>Pick from inventory</option>
+                {inventoryItems.map(it=><option key={it.id} value={it.id}>{it.name} ({it.unit})</option>)}
+              
+              </select>
+            )}
             <input style={styles.input} type="number" min="0" step="any" placeholder="0"
               value={ing.quantity} onChange={e=>updateRow(idx,'quantity',e.target.value)}/>
             {ing.isManual ? (
