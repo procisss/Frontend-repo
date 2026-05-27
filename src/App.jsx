@@ -2745,90 +2745,7 @@ function Alerts({ onAlertChange }) {
  
   useEffect(() => { fetchAlerts(); }, []);
  
-  // ── If free user — show full-page lock screen ──
-  if (limits !== null && !isPremium) {
-    return (
-      <div>
-        {showUpgrade && (
-          <UpgradeModal
-            reason="Alerts & Notifications is a Premium feature. Upgrade to get automatic low-stock alerts, manual alerts, and resolution history."
-            onClose={() => setShowUpgrade(false)}
-          />
-        )}
- 
-        <div style={styles.pageTitle}>Alerts & Notifications</div>
-        <div style={styles.pageSub}>Monitor stock levels and business alerts</div>
- 
-        {/* Full-page lock card */}
-        <div style={{
-          ...styles.card,
-          marginTop: 24,
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', padding: '60px 40px', textAlign: 'center', gap: 16,
-        }}>
-          {/* Big lock icon */}
-          <div style={{
-            width: 80, height: 80, borderRadius: 20,
-            background: `linear-gradient(135deg, ${COLORS.green}, ${COLORS.orange})`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36,
-            boxShadow: '0 8px 24px rgba(34,197,94,0.25)',
-          }}>🔒</div>
- 
-          <div style={{ fontWeight: 800, fontSize: 22, color: COLORS.gray900 }}>
-            Alerts & Notifications
-          </div>
-          <div style={{ fontSize: 14, color: COLORS.gray500, maxWidth: 420, lineHeight: 1.7 }}>
-            Get notified when your stock runs low, create manual alerts for your team,
-            and track what's been resolved — all in one place.
-          </div>
- 
-          {/* Feature list */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
-            margin: '8px 0', width: '100%', maxWidth: 480,
-          }}>
-            {[
-              { icon: '📉', label: 'Auto Low Stock Alerts',    sub: 'Triggered when stock hits minimum' },
-              { icon: '🔔', label: 'Manual Custom Alerts',     sub: 'Create alerts for anything' },
-              { icon: '⚠️', label: 'Critical & Warning Levels', sub: 'Prioritize what needs action' },
-              { icon: '✅', label: 'Resolution History',        sub: 'Track what was fixed and when' },
-            ].map((f, i) => (
-              <div key={i} style={{
-                background: COLORS.gray50, border: `1px solid ${COLORS.gray200}`,
-                borderRadius: 10, padding: '12px 14px', textAlign: 'left',
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-              }}>
-                <span style={{ fontSize: 20 }}>{f.icon}</span>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: COLORS.gray800 }}>{f.label}</div>
-                  <div style={{ fontSize: 11, color: COLORS.gray500, marginTop: 2 }}>{f.sub}</div>
-                </div>
-              </div>
-            ))}
-          </div>
- 
-          {/* Pricing hint */}
-          <div style={{
-            background: `linear-gradient(135deg, ${COLORS.greenLight}, #fff9f0)`,
-            border: `1px solid ${COLORS.gray200}`, borderRadius: 10,
-            padding: '14px 24px', fontSize: 13, color: COLORS.gray700,
-          }}>
-            Starting at <strong style={{ color: COLORS.greenDark }}>₱149/month</strong> · Cancel anytime
-          </div>
- 
-          <button onClick={() => setShowUpgrade(true)} style={{
-            background: `linear-gradient(90deg, ${COLORS.green}, ${COLORS.orange})`,
-            color: COLORS.white, border: 'none', borderRadius: 10,
-            padding: '13px 36px', fontSize: 15, fontWeight: 800, cursor: 'pointer',
-            boxShadow: '0 4px 16px rgba(34,197,94,0.3)',
-          }}>
-            👑 Upgrade to Unlock Alerts
-          </button>
-        </div>
-      </div>
-    );
-  }
- 
+  // ── Premium vs Free UI ──
   // ── Premium user — full Alerts UI ──
   const handleCreate = async () => {
     if (!form.title) return setFormError('Title is required.');
@@ -2874,12 +2791,20 @@ function Alerts({ onAlertChange }) {
     { id: 'critical', label: `Critical (${summary.critical})` },
     { id: 'warning',  label: `Warning (${summary.warning})` },
     { id: 'lowstock', label: `Low Stock (${autoAlerts.length})` },
-    { id: 'manual',   label: `Manual (${activeManual.length})` },
-    { id: 'resolved', label: `Resolved (${summary.resolved})` },
+    ...(isPremium ? [
+      { id: 'manual',   label: `Manual (${activeManual.length})` },
+      { id: 'resolved', label: `Resolved (${summary.resolved})` },
+    ] : [])
   ];
  
   return (
     <div>
+      {showUpgrade && (
+        <UpgradeModal
+          reason="Manual Alerts and Ingredient Alerts are Premium features. Upgrade to unlock full alert capabilities and history."
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
       {showModal && (
         <AlertModal
           form={form} setForm={setForm} saving={saving}
@@ -2894,9 +2819,15 @@ function Alerts({ onAlertChange }) {
         </div>
         <div style={styles.row}>
           <button style={styles.btnGray} onClick={fetchAlerts}>🔄 Refresh</button>
-          <button style={styles.btnPrimary} onClick={() => { setForm({ title: '', message: '', severity: 'warning' }); setFormError(''); setShowModal(true); }}>
-            + Create Alert
-          </button>
+          {isPremium ? (
+            <button style={styles.btnPrimary} onClick={() => { setForm({ title: '', message: '', severity: 'warning' }); setFormError(''); setShowModal(true); }}>
+              + Create Alert
+            </button>
+          ) : (
+            <button style={{...styles.btnPrimary, background:COLORS.gray300, color:COLORS.gray600, border:`1px solid ${COLORS.gray300}`, cursor:'pointer'}} onClick={() => setShowUpgrade(true)}>
+              🔒 Create Alert (Premium)
+            </button>
+          )}
         </div>
       </div>
       <div style={styles.grid4}>
