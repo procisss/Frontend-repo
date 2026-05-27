@@ -898,7 +898,10 @@ function Recipes() {
   const openEdit = (recipe) => {
     setEditItem(recipe);
     setForm({ name:recipe.name, category:recipe.category, sellingPrice:String(recipe.selling_price), sellingUnit:recipe.selling_unit||'', description:recipe.description||'' });
-    setIngredients(recipe.ingredients.map(ing=>({ inventoryId:ing.inventory_id||'', name:ing.name, quantity:String(ing.quantity), unit:ing.unit, isManual:!ing.inventory_id })));
+    setIngredients(recipe.ingredients.map(ing=>{
+      const id = ing.ingredient_inventory_id || ing.inventory_id || '';
+      return { inventoryId:id, name:ing.name, quantity:String(ing.quantity), unit:ing.unit, isManual:!id };
+    }));
     setFormError('');
     setShowModal(true);
   };
