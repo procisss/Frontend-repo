@@ -898,10 +898,7 @@ function Recipes() {
   const openEdit = (recipe) => {
     setEditItem(recipe);
     setForm({ name:recipe.name, category:recipe.category, sellingPrice:String(recipe.selling_price), sellingUnit:recipe.selling_unit||'', description:recipe.description||'' });
-    setIngredients(recipe.ingredients.map(ing=>{
-      const id = ing.ingredient_inventory_id || ing.inventory_id || '';
-      return { inventoryId:id, name:ing.name, quantity:String(ing.quantity), unit:ing.unit, isManual:!id };
-    }));
+    setIngredients(recipe.ingredients.map(ing=>({ inventoryId:ing.inventory_id||'', name:ing.name, quantity:String(ing.quantity), unit:ing.unit, isManual:!ing.inventory_id })));
     setFormError('');
     setShowModal(true);
   };
@@ -2713,119 +2710,176 @@ function AlertModal({ form, setForm, saving, formError, onSave, onClose }) {
   );
 }
 
-// ── ALERTS SUB-VIEW COMPONENT ──
-function AlertsView({ 
-  isPremium, 
-  limits, 
-  autoAlerts = [], 
-  manualAlerts = [], 
-  summary = { total: 0, critical: 0, warning: 0, resolved: 0 }, 
-  loading, 
-  fetchAlerts, 
-  onNavigate, 
-  setAlertSearchFilter 
-}) {
-  const [activeTab, setActiveTab] = useState('all');
+// ── Alerts Page ──
+function Alerts({ onAlertChange }) {
+  const { limits } = useLimits();
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [actioning, setActioning] = useState(null);
-  const [formError, setFormError] = useState('');
-  const [form, setForm] = useState({ title: '', message: '', severity: 'warning' });
-
-  const headers = { 
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('token')}` 
+  const isPremium = limits && !limits.isLimited;
+ 
+  const [autoAlerts, setAutoAlerts]     = useState([]);
+  const [manualAlerts, setManualAlerts] = useState([]);
+  const [summary, setSummary]           = useState({ total: 0, critical: 0, warning: 0, resolved: 0 });
+  const [loading, setLoading]           = useState(true);
+  const [activeTab, setActiveTab]       = useState('all');
+  const [showModal, setShowModal]       = useState(false);
+  const [form, setForm]                 = useState({ title: '', message: '', severity: 'warning' });
+  const [formError, setFormError]       = useState('');
+  const [saving, setSaving]             = useState(false);
+  const [actioning, setActioning]       = useState(null);
+ 
+  const token   = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+ 
+  const fetchAlerts = async () => {
+    setLoading(true);
+    try {
+      const res  = await fetch('https://backend-repo-psi.vercel.app/api/alerts', { headers });
+      const data = await res.json();
+      setAutoAlerts(data.autoAlerts || []);
+      setManualAlerts(data.manualAlerts || []);
+      setSummary(data.summary || { total: 0, critical: 0, warning: 0, resolved: 0 });
+      if (onAlertChange) onAlertChange();
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
-
+ 
+  useEffect(() => { fetchAlerts(); }, []);
+ 
+  // ── If free user — show full-page lock screen ──
+  if (limits !== null && !isPremium) {
+    return (
+      <div>
+        {showUpgrade && (
+          <UpgradeModal
+            reason="Alerts & Notifications is a Premium feature. Upgrade to get automatic low-stock alerts, manual alerts, and resolution history."
+            onClose={() => setShowUpgrade(false)}
+          />
+        )}
+ 
+        <div style={styles.pageTitle}>Alerts & Notifications</div>
+        <div style={styles.pageSub}>Monitor stock levels and business alerts</div>
+ 
+        {/* Full-page lock card */}
+        <div style={{
+          ...styles.card,
+          marginTop: 24,
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', padding: '60px 40px', textAlign: 'center', gap: 16,
+        }}>
+          {/* Big lock icon */}
+          <div style={{
+            width: 80, height: 80, borderRadius: 20,
+            background: `linear-gradient(135deg, ${COLORS.green}, ${COLORS.orange})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36,
+            boxShadow: '0 8px 24px rgba(34,197,94,0.25)',
+          }}>🔒</div>
+ 
+          <div style={{ fontWeight: 800, fontSize: 22, color: COLORS.gray900 }}>
+            Alerts & Notifications
+          </div>
+          <div style={{ fontSize: 14, color: COLORS.gray500, maxWidth: 420, lineHeight: 1.7 }}>
+            Get notified when your stock runs low, create manual alerts for your team,
+            and track what's been resolved — all in one place.
+          </div>
+ 
+          {/* Feature list */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
+            margin: '8px 0', width: '100%', maxWidth: 480,
+          }}>
+            {[
+              { icon: '📉', label: 'Auto Low Stock Alerts',    sub: 'Triggered when stock hits minimum' },
+              { icon: '🔔', label: 'Manual Custom Alerts',     sub: 'Create alerts for anything' },
+              { icon: '⚠️', label: 'Critical & Warning Levels', sub: 'Prioritize what needs action' },
+              { icon: '✅', label: 'Resolution History',        sub: 'Track what was fixed and when' },
+            ].map((f, i) => (
+              <div key={i} style={{
+                background: COLORS.gray50, border: `1px solid ${COLORS.gray200}`,
+                borderRadius: 10, padding: '12px 14px', textAlign: 'left',
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <span style={{ fontSize: 20 }}>{f.icon}</span>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: COLORS.gray800 }}>{f.label}</div>
+                  <div style={{ fontSize: 11, color: COLORS.gray500, marginTop: 2 }}>{f.sub}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+ 
+          {/* Pricing hint */}
+          <div style={{
+            background: `linear-gradient(135deg, ${COLORS.greenLight}, #fff9f0)`,
+            border: `1px solid ${COLORS.gray200}`, borderRadius: 10,
+            padding: '14px 24px', fontSize: 13, color: COLORS.gray700,
+          }}>
+            Starting at <strong style={{ color: COLORS.greenDark }}>₱149/month</strong> · Cancel anytime
+          </div>
+ 
+          <button onClick={() => setShowUpgrade(true)} style={{
+            background: `linear-gradient(90deg, ${COLORS.green}, ${COLORS.orange})`,
+            color: COLORS.white, border: 'none', borderRadius: 10,
+            padding: '13px 36px', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+            boxShadow: '0 4px 16px rgba(34,197,94,0.3)',
+          }}>
+            👑 Upgrade to Unlock Alerts
+          </button>
+        </div>
+      </div>
+    );
+  }
+ 
+  // ── Premium user — full Alerts UI ──
   const handleCreate = async () => {
-    if (!isPremium) {
-      setShowUpgrade(true);
-      return;
-    }
     if (!form.title) return setFormError('Title is required.');
     setSaving(true); setFormError('');
     try {
       const res  = await fetch('https://backend-repo-psi.vercel.app/api/alerts', { method: 'POST', headers, body: JSON.stringify(form) });
       const data = await res.json();
       if (!res.ok) return setFormError(data.message || 'Failed to create.');
-      setShowModal(false); 
-      fetchAlerts();
-    } catch (err) { 
-      console.error("Submission Error Details:", err); 
-      setFormError(`Connection Error: ${err.message || 'Check terminal logs'}`); 
-    } finally { 
-      setSaving(false); 
-    }
+      setShowModal(false); fetchAlerts();
+    } catch { setFormError('Cannot connect to server.'); }
+    finally { setSaving(false); }
   };
-
+ 
   const handleResolve = async (id) => {
     setActioning(id);
-    try { 
-      await fetch(`https://backend-repo-psi.vercel.app/api/alerts/${id}/resolve`, { method: 'PUT', headers }); 
-      fetchAlerts(); 
-    } catch(e) {
-      console.error(e);
-    } finally { 
-      setActioning(null); 
-    }
+    try { await fetch(`https://backend-repo-psi.vercel.app/api/alerts/${id}/resolve`, { method: 'PUT', headers }); fetchAlerts(); }
+    finally { setActioning(null); }
   };
-  
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this alert?')) return;
     setActioning(id + '-del');
-    try { 
-      await fetch(`https://backend-repo-psi.vercel.app/api/alerts/${id}`, { method: 'DELETE', headers }); 
-      fetchAlerts(); 
-    } catch(e) {
-      console.error(e);
-    } finally { 
-      setActioning(null); 
-    }
+    try { await fetch(`https://backend-repo-psi.vercel.app/api/alerts/${id}`, { method: 'DELETE', headers }); fetchAlerts(); }
+    finally { setActioning(null); }
   };
-
+ 
   const activeManual   = manualAlerts.filter(a => a.status === 'active');
   const resolvedManual = manualAlerts.filter(a => a.status === 'resolved');
-  
-  const totalActiveList = isPremium ? [...autoAlerts, ...activeManual] : [...autoAlerts];
-
   const tabData = {
-    all:      totalActiveList,
-    critical: totalActiveList.filter(a => a.severity === 'critical'),
-    warning:  totalActiveList.filter(a => a.severity === 'warning'),
-    products: autoAlerts.filter(a => a.type === 'product'),
-    ingredients: isPremium ? autoAlerts.filter(a => a.type === 'inventory') : [],
-    manual:   isPremium ? activeManual : [],
-    resolved: isPremium ? resolvedManual : [],
+    all:      [...autoAlerts, ...activeManual],
+    critical: [...autoAlerts.filter(a => a.severity === 'critical'), ...activeManual.filter(a => a.severity === 'critical')],
+    warning:  [...autoAlerts.filter(a => a.severity === 'warning'),  ...activeManual.filter(a => a.severity === 'warning')],
+    lowstock: autoAlerts,
+    manual:   activeManual,
+    resolved: resolvedManual,
   };
-  
   const currentAlerts = tabData[activeTab] || [];
   const sevColor  = s => s === 'critical' ? 'red'  : s === 'warning' ? 'orange' : 'green';
   const sevBg     = s => s === 'critical' ? '#fff5f5' : s === 'warning' ? '#fffbeb' : '#f0fdf4';
   const sevBorder = s => s === 'critical' ? COLORS.redLight : s === 'warning' ? COLORS.amberLight : COLORS.greenLight;
   const sevIcon   = s => s === 'critical' ? '⚠️' : s === 'warning' ? '🔔' : 'ℹ️';
-  
   const tabs = [
-    { id: 'all',      label: `All Active (${totalActiveList.length})` },
-    { id: 'critical', label: `Critical (${tabData.critical.length})` },
-    { id: 'warning',  label: `Warning (${tabData.warning.length})` },
-    { id: 'products', label: `Product Stock (${tabData.products.length})` },
-    ...(isPremium ? [
-      { id: 'ingredients', label: `Ingredients (${tabData.ingredients.length})` },
-      { id: 'manual',   label: `Manual (${activeManual.length})` },
-      { id: 'resolved', label: `Resolved (${summary.resolved || 0})` }
-    ] : [])
+    { id: 'all',      label: `All Active (${summary.total})` },
+    { id: 'critical', label: `Critical (${summary.critical})` },
+    { id: 'warning',  label: `Warning (${summary.warning})` },
+    { id: 'lowstock', label: `Low Stock (${autoAlerts.length})` },
+    { id: 'manual',   label: `Manual (${activeManual.length})` },
+    { id: 'resolved', label: `Resolved (${summary.resolved})` },
   ];
-
+ 
   return (
     <div>
-      {showUpgrade && (
-        <UpgradeModal
-          reason="Ingredient Stock Threshold tracking, Manual Custom Alerts, and historical logs are Premium features. Upgrade now to get full dashboard operations!"
-          onClose={() => setShowUpgrade(false)}
-        />
-      )}
-      
       {showModal && (
         <AlertModal
           form={form} setForm={setForm} saving={saving}
@@ -2833,45 +2887,31 @@ function AlertsView({
           onClose={() => setShowModal(false)}
         />
       )}
-      
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 12 }}>
+      <div style={{ ...styles.row, justifyContent: 'space-between', marginBottom: 8 }}>
         <div>
           <div style={styles.pageTitle}>Alerts & Notifications</div>
-          <div style={styles.pageSub}>Monitor system stock thresholds and custom warnings</div>
+          <div style={styles.pageSub}>Monitor stock levels and business alerts</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={styles.row}>
           <button style={styles.btnGray} onClick={fetchAlerts}>🔄 Refresh</button>
-          <button 
-            style={styles.btnPrimary} 
-            onClick={() => { 
-              if (!isPremium) {
-                setShowUpgrade(true);
-              } else {
-                setForm({ title: '', message: '', severity: 'warning' }); 
-                setFormError(''); 
-                setShowModal(true); 
-              }
-            }}
-          >
-            + Create Manual Alert {!isPremium && '👑'}
+          <button style={styles.btnPrimary} onClick={() => { setForm({ title: '', message: '', severity: 'warning' }); setFormError(''); setShowModal(true); }}>
+            + Create Alert
           </button>
         </div>
       </div>
-      
       <div style={styles.grid4}>
         {[
-          { l: 'Active Alerts', v: totalActiveList.length, c: COLORS.orange },
-          { l: 'Critical Track', v: tabData.critical.length, c: COLORS.red },
-          { l: 'Product Warnings', v: tabData.products.length, c: COLORS.amber },
-          { l: 'Ingredient Track', v: isPremium ? tabData.ingredients.length : '🔒 Premium', c: COLORS.purple },
+          { l: 'Active Alerts', v: summary.total,    c: COLORS.orange },
+          { l: 'Critical',      v: summary.critical, c: COLORS.red    },
+          { l: 'Warning',       v: summary.warning,  c: COLORS.amber  },
+          { l: 'Resolved',      v: summary.resolved, c: COLORS.green  },
         ].map((s, i) => (
           <div key={i} style={styles.statCard}>
             <div style={styles.statLabel}>{s.l}</div>
-            <div style={{ ...styles.statValue, color: s.c, fontSize: typeof s.v === 'string' ? 16 : 24 }}>{s.v}</div>
+            <div style={{ ...styles.statValue, color: s.c }}>{s.v}</div>
           </div>
         ))}
       </div>
-      
       <div style={styles.card}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {tabs.map(t => (
@@ -2882,60 +2922,48 @@ function AlertsView({
               color:      activeTab === t.id ? COLORS.greenDark  : COLORS.gray600,
             }}>{t.label}</button>
           ))}
-          {!isPremium && (
-            <span 
-              onClick={() => setShowUpgrade(true)}
-              style={{ padding: '6px 14px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: COLORS.orangeLight, color: COLORS.orange, border: `1px dashed ${COLORS.orange}` }}
-            >
-              👑 Unlock Ingredient & Manual Alerts
-            </span>
-          )}
         </div>
-        
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: COLORS.gray400 }}>Loading active system alerts...</div>
+          <div style={{ textAlign: 'center', padding: '40px 0', color: COLORS.gray400 }}>Loading alerts...</div>
         ) : currentAlerts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: COLORS.gray400 }}>
-            ✅ No item alerts found in this category — all good!
+            {activeTab === 'resolved' ? 'No resolved alerts yet.' : '✅ No alerts in this category — all good!'}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {currentAlerts.map((a, i) => (
-              <div 
-                key={i} 
-                style={{
-                  border: `1px solid ${sevBorder(a.severity)}`, borderRadius: 10,
-                  padding: '16px 20px',
-                  background: a.status === 'resolved' ? COLORS.gray50 : sevBg(a.severity),
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div key={i} style={{
+                border: `1px solid ${sevBorder(a.severity)}`, borderRadius: 10,
+                padding: '16px 20px',
+                background: a.status === 'resolved' ? COLORS.gray50 : sevBg(a.severity),
+                opacity: a.status === 'resolved' ? 0.75 : 1,
+              }}>
+                <div style={{ ...styles.row, justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={styles.row}>
                     <span style={{ fontSize: 20 }}>{sevIcon(a.severity)}</span>
                     <span style={{ fontWeight: 700, fontSize: 14 }}>{a.title}</span>
                     <span style={styles.tag(sevColor(a.severity))}>{a.severity}</span>
-                    {a.type === 'product' && <span style={{ background: COLORS.orangeLight, color: COLORS.orange, padding: '2px 8px', borderRadius: 6, fontSize: 10 }}>Product Stock</span>}
-                    {a.type === 'inventory' && <span style={{ background: '#f3e8ff', color: '#6b21a8', padding: '2px 8px', borderRadius: 6, fontSize: 10 }}>Raw Ingredient</span>}
-                    {a.type === 'manual' && <span style={{ background: COLORS.gray100, color: COLORS.gray600, padding: '2px 8px', borderRadius: 6, fontSize: 10 }}>Manual Notification</span>}
+                    {a.type === 'inventory' && <span style={{ ...styles.badge(COLORS.blue, COLORS.blueLight), fontSize: 10 }}>Auto</span>}
+                    {a.type === 'manual'    && <span style={{ ...styles.badge(COLORS.gray600, COLORS.gray100), fontSize: 10 }}>Manual</span>}
                   </div>
                   {a.createdAt && <span style={{ fontSize: 11, color: COLORS.gray400 }}>{new Date(a.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</span>}
                 </div>
                 {a.message && <p style={{ fontSize: 13, color: COLORS.gray600, marginBottom: 12 }}>{a.message}</p>}
-                
-                {(a.type === 'inventory' || a.type === 'product') && (
-                  <div style={{ background: COLORS.white, border: `1px solid ${COLORS.gray100}`, borderRadius: 8, padding: '10px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Target Item:</div><div style={{ fontWeight: 600 }}>{a.item}</div></div>
-                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Remaining Qty:</div><div style={{ fontWeight: 600, color: COLORS.red }}>{a.current}</div></div>
-                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Alert Minimum:</div><div style={{ fontWeight: 600 }}>{a.minimum}</div></div>
+                {a.type === 'inventory' && (
+                  <div style={{ background: COLORS.white, borderRadius: 8, padding: '10px 14px', marginBottom: 12, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Item:</div><div style={{ fontWeight: 600 }}>{a.item}</div></div>
+                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Current Stock:</div><div style={{ fontWeight: 600, color: COLORS.red }}>{a.current}</div></div>
+                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Minimum Required:</div><div style={{ fontWeight: 600 }}>{a.minimum}</div></div>
                   </div>
                 )}
-                
-                {a.type === 'manual' && a.status === 'active' && isPremium && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                    <button style={styles.btnOutline} onClick={() => handleResolve(a.id)} disabled={actioning === a.id}>✓ Mark as Fixed</button>
-                    <button style={{ background: COLORS.redLight, color: COLORS.red, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }} onClick={() => handleDelete(a.id)} disabled={actioning === a.id + '-del'}>Delete</button>
+                {a.type === 'manual' && a.status === 'active' && (
+                  <div style={styles.row}>
+                    <button style={styles.btnOutline} onClick={() => handleResolve(a.id)} disabled={actioning === a.id}>{actioning === a.id ? '...' : '✓ Mark as Resolved'}</button>
+                    <button style={{ background: COLORS.redLight, color: COLORS.red, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }} onClick={() => handleDelete(a.id)} disabled={actioning === a.id + '-del'}>{actioning === a.id + '-del' ? '...' : 'Delete'}</button>
                   </div>
                 )}
+                {a.status === 'resolved' && <div style={{ fontSize: 12, color: COLORS.green, fontWeight: 600 }}>✅ Resolved {a.resolvedAt ? `on ${new Date(a.resolvedAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}` : ''}</div>}
+                {a.type === 'inventory' && a.status === 'active' && <div style={{ fontSize: 12, color: COLORS.gray500, marginTop: 8 }}>💡 Go to <strong>Purchases</strong> to restock this item.</div>}
               </div>
             ))}
           </div>
