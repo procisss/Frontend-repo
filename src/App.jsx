@@ -2749,7 +2749,7 @@ function Alerts({ onAlertChange, onNavigate }) {
  
   useEffect(() => { fetchAlerts(); }, []);
  
-  // ── Unified Free & Premium State Logic ──
+  // ── Unified Free & Premium State Logic (No Full Page Interruption Lock) ──
   const handleCreate = async () => {
     if (!isPremium) {
       setShowUpgrade(true);
@@ -2782,14 +2782,15 @@ function Alerts({ onAlertChange, onNavigate }) {
   const activeManual   = manualAlerts.filter(a => a.status === 'active');
   const resolvedManual = manualAlerts.filter(a => a.status === 'resolved');
   
-  // Free users only get auto alerts (product inventory), Premium gets both auto + manual
+  // Free tier displays only product inventory low-stock alerts, Premium gets combined lists
   const totalActiveList = isPremium ? [...autoAlerts, ...activeManual] : [...autoAlerts];
 
   const tabData = {
     all:      totalActiveList,
     critical: totalActiveList.filter(a => a.severity === 'critical'),
     warning:  totalActiveList.filter(a => a.severity === 'warning'),
-    lowstock: autoAlerts,
+    products: autoAlerts.filter(a => a.type === 'product'),
+    ingredients: isPremium ? autoAlerts.filter(a => a.type === 'inventory') : [],
     manual:   isPremium ? activeManual : [],
     resolved: isPremium ? resolvedManual : [],
   };
@@ -2800,72 +2801,24 @@ function Alerts({ onAlertChange, onNavigate }) {
   const sevBorder = s => s === 'critical' ? COLORS.redLight : s === 'warning' ? COLORS.amberLight : COLORS.greenLight;
   const sevIcon   = s => s === 'critical' ? '⚠️' : s === 'warning' ? '🔔' : 'ℹ️';
   
-  // Filter out the "Manual" and "Resolved" tabs for free users
+  // Set up visible navigation tabs conditionally based on tier
   const tabs = [
-    { id: 'all',      label: `All Active (${isPremium ? summary.total : autoAlerts.length})` },
-    { id: 'critical', label: `Critical (${isPremium ? summary.critical : autoAlerts.filter(a => a.severity === 'critical').length})` },
-    { id: 'warning',  label: `Warning (${isPremium ? summary.warning : autoAlerts.filter(a => a.severity === 'warning').length})` },
-    { id: 'lowstock', label: `Low Stock (${autoAlerts.length})` },
+    { id: 'all',      label: `All Active (${totalActiveList.length})` },
+    { id: 'critical', label: `Critical (${tabData.critical.length})` },
+    { id: 'warning',  label: `Warning (${tabData.warning.length})` },
+    { id: 'products', label: `Product Stock (${tabData.products.length})` },
     ...(isPremium ? [
+      { id: 'ingredients', label: `Ingredients (${tabData.ingredients.length})` },
       { id: 'manual',   label: `Manual (${activeManual.length})` },
       { id: 'resolved', label: `Resolved (${summary.resolved})` }
     ] : [])
   ];
- 
-  // ── Premium user — full Alerts UI ──
-  const handleCreate = async () => {
-    if (!form.title) return setFormError('Title is required.');
-    setSaving(true); setFormError('');
-    try {
-      const res  = await fetch('https://backend-repo-psi.vercel.app/api/alerts', { method: 'POST', headers, body: JSON.stringify(form) });
-      const data = await res.json();
-      if (!res.ok) return setFormError(data.message || 'Failed to create.');
-      setShowModal(false); fetchAlerts();
-    } catch { setFormError('Cannot connect to server.'); }
-    finally { setSaving(false); }
-  };
- 
-  const handleResolve = async (id) => {
-    setActioning(id);
-    try { await fetch(`https://backend-repo-psi.vercel.app/api/alerts/${id}/resolve`, { method: 'PUT', headers }); fetchAlerts(); }
-    finally { setActioning(null); }
-  };
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this alert?')) return;
-    setActioning(id + '-del');
-    try { await fetch(`https://backend-repo-psi.vercel.app/api/alerts/${id}`, { method: 'DELETE', headers }); fetchAlerts(); }
-    finally { setActioning(null); }
-  };
- 
-  const activeManual   = manualAlerts.filter(a => a.status === 'active');
-  const resolvedManual = manualAlerts.filter(a => a.status === 'resolved');
-  const tabData = {
-    all:      [...autoAlerts, ...activeManual],
-    critical: [...autoAlerts.filter(a => a.severity === 'critical'), ...activeManual.filter(a => a.severity === 'critical')],
-    warning:  [...autoAlerts.filter(a => a.severity === 'warning'),  ...activeManual.filter(a => a.severity === 'warning')],
-    lowstock: autoAlerts,
-    manual:   activeManual,
-    resolved: resolvedManual,
-  };
-  const currentAlerts = tabData[activeTab] || [];
-  const sevColor  = s => s === 'critical' ? 'red'  : s === 'warning' ? 'orange' : 'green';
-  const sevBg     = s => s === 'critical' ? '#fff5f5' : s === 'warning' ? '#fffbeb' : '#f0fdf4';
-  const sevBorder = s => s === 'critical' ? COLORS.redLight : s === 'warning' ? COLORS.amberLight : COLORS.greenLight;
-  const sevIcon   = s => s === 'critical' ? '⚠️' : s === 'warning' ? '🔔' : 'ℹ️';
-  const tabs = [
-    { id: 'all',      label: `All Active (${summary.total})` },
-    { id: 'critical', label: `Critical (${summary.critical})` },
-    { id: 'warning',  label: `Warning (${summary.warning})` },
-    { id: 'lowstock', label: `Low Stock (${autoAlerts.length})` },
-    { id: 'manual',   label: `Manual (${activeManual.length})` },
-    { id: 'resolved', label: `Resolved (${summary.resolved})` },
-  ];
- 
+
   return (
     <div>
       {showUpgrade && (
         <UpgradeModal
-          reason="Manual Custom Alerts and complete resolution logs are Premium features. Upgrade now to fully customize your business monitoring team dashboard!"
+          reason="Ingredient Stock Threshold tracking, Manual Custom Alerts, and historical logs are Premium features. Upgrade now to get full dashboard operations!"
           onClose={() => setShowUpgrade(false)}
         />
       )}
@@ -2877,10 +2830,11 @@ function Alerts({ onAlertChange, onNavigate }) {
           onClose={() => setShowModal(false)}
         />
       )}
+      
       <div style={{ ...styles.row, justifyContent: 'space-between', marginBottom: 8 }}>
         <div>
           <div style={styles.pageTitle}>Alerts & Notifications</div>
-          <div style={styles.pageSub}>Monitor stock levels and business alerts</div>
+          <div style={styles.pageSub}>Monitor system stock thresholds and custom warnings</div>
         </div>
         <div style={styles.row}>
           <button style={styles.btnGray} onClick={fetchAlerts}>🔄 Refresh</button>
@@ -2896,25 +2850,27 @@ function Alerts({ onAlertChange, onNavigate }) {
               }
             }}
           >
-            + Create Alert {!isPremium && '👑'}
+            + Create Manual Alert {!isPremium && '👑'}
           </button>
         </div>
       </div>
       
+      {/* Dynamic Counter Overview Boxes */}
       <div style={styles.grid4}>
         {[
-          { l: 'Active Alerts', v: isPremium ? summary.total : autoAlerts.length,    c: COLORS.orange },
-          { l: 'Critical',      v: isPremium ? summary.critical : autoAlerts.filter(a => a.severity === 'critical').length, c: COLORS.red    },
-          { l: 'Warning',       v: isPremium ? summary.warning : autoAlerts.filter(a => a.severity === 'warning').length,  c: COLORS.amber  },
-          { l: 'Resolved',      v: isPremium ? summary.resolved : 0, c: COLORS.green  },
+          { l: 'Active Alerts', v: totalActiveList.length, c: COLORS.orange },
+          { l: 'Critical Track', v: tabData.critical.length, c: COLORS.red },
+          { l: 'Product Warnings', v: tabData.products.length, c: COLORS.amber },
+          { l: 'Ingredient Track', v: isPremium ? tabData.ingredients.length : '🔒 Premium', c: COLORS.purple },
         ].map((s, i) => (
           <div key={i} style={styles.statCard}>
             <div style={styles.statLabel}>{s.l}</div>
-            <div style={{ ...styles.statValue, color: s.c }}>{s.v}</div>
+            <div style={{ ...styles.statValue, color: s.c, fontSize: typeof s.v === 'string' ? 16 : 24 }}>{s.v}</div>
           </div>
         ))}
       </div>
       
+      {/* Standard functional card containing categories */}
       <div style={styles.card}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {tabs.map(t => (
@@ -2925,33 +2881,31 @@ function Alerts({ onAlertChange, onNavigate }) {
               color:      activeTab === t.id ? COLORS.greenDark  : COLORS.gray600,
             }}>{t.label}</button>
           ))}
+          {!isPremium && (
+            <span 
+              onClick={() => setShowUpgrade(true)}
+              style={{ padding: '6px 14px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: COLORS.orangeLight, color: COLORS.orange, border: '1px dashed ' + COLORS.orange }}
+            >
+              👑 Unlock Ingredient & Manual Alerts
+            </span>
+          )}
         </div>
         
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: COLORS.gray400 }}>Loading alerts...</div>
+          <div style={{ textAlign: 'center', padding: '40px 0', color: COLORS.gray400 }}>Loading active system alerts...</div>
         ) : currentAlerts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: COLORS.gray400 }}>
-            {activeTab === 'resolved' ? 'No resolved alerts yet.' : '✅ No alerts in this category — all good!'}
+            ✅ No item alerts found in this category — all good!
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {currentAlerts.map((a, i) => (
               <div 
                 key={i} 
-                onClick={() => {
-                  if (a.purchaseUrl && a.status === 'active' && onNavigate) {
-                    const urlParams = new URLSearchParams(a.purchaseUrl.split('?')[1]);
-                    const queryItem = urlParams.get('search');
-                    if (setAlertSearchFilter) setAlertSearchFilter(queryItem || '');
-                    onNavigate('purchases');
-                  }
-                }}
                 style={{
                   border: `1px solid ${sevBorder(a.severity)}`, borderRadius: 10,
                   padding: '16px 20px',
                   background: a.status === 'resolved' ? COLORS.gray50 : sevBg(a.severity),
-                  opacity: a.status === 'resolved' ? 0.75 : 1,
-                  cursor: (a.purchaseUrl && a.status === 'active') ? 'pointer' : 'default',
                 }}
               >
                 <div style={{ ...styles.row, justifyContent: 'space-between', marginBottom: 8 }}>
@@ -2959,41 +2913,27 @@ function Alerts({ onAlertChange, onNavigate }) {
                     <span style={{ fontSize: 20 }}>{sevIcon(a.severity)}</span>
                     <span style={{ fontWeight: 700, fontSize: 14 }}>{a.title}</span>
                     <span style={styles.tag(sevColor(a.severity))}>{a.severity}</span>
-                    {a.type === 'product' && <span style={{ ...styles.badge(COLORS.purple, '#f3e8ff'), fontSize: 10, color: '#6b21a8' }}>Product</span>}
-                    {a.type === 'inventory' && <span style={{ ...styles.badge(COLORS.blue, COLORS.blueLight), fontSize: 10 }}>Ingredient</span>}
-                    {a.type === 'manual'    && <span style={{ ...styles.badge(COLORS.gray600, COLORS.gray100), fontSize: 10 }}>Manual</span>}
+                    {a.type === 'product' && <span style={{ ...styles.badge(COLORS.amber, COLORS.amberLight), fontSize: 10 }}>Product Stock</span>}
+                    {a.type === 'inventory' && <span style={{ ...styles.badge(COLORS.purple, '#f3e8ff'), fontSize: 10, color: '#6b21a8' }}>Raw Ingredient</span>}
+                    {a.type === 'manual' && <span style={{ ...styles.badge(COLORS.gray600, COLORS.gray100), fontSize: 10 }}>Manual Notification</span>}
                   </div>
                   {a.createdAt && <span style={{ fontSize: 11, color: COLORS.gray400 }}>{new Date(a.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</span>}
                 </div>
                 {a.message && <p style={{ fontSize: 13, color: COLORS.gray600, marginBottom: 12 }}>{a.message}</p>}
                 
+                {/* Embedded metric dashboard values */}
                 {(a.type === 'inventory' || a.type === 'product') && (
-                  <div style={{ background: COLORS.white, border: `1px solid ${COLORS.gray100}`, borderRadius: 8, padding: '10px 14px', marginBottom: 12, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Item:</div><div style={{ fontWeight: 600 }}>{a.item}</div></div>
-                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Current Stock:</div><div style={{ fontWeight: 600, color: COLORS.red }}>{a.current}</div></div>
-                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Minimum Required:</div><div style={{ fontWeight: 600 }}>{a.minimum}</div></div>
+                  <div style={{ background: COLORS.white, border: `1px solid ${COLORS.gray100}`, borderRadius: 8, padding: '10px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Target Item:</div><div style={{ fontWeight: 600 }}>{a.item}</div></div>
+                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Remaining Qty:</div><div style={{ fontWeight: 600, color: COLORS.red }}>{a.current}</div></div>
+                    <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Alert Minimum:</div><div style={{ fontWeight: 600 }}>{a.minimum}</div></div>
                   </div>
                 )}
                 
-                {a.type === 'manual' && a.status === 'active' && (
-                  <div style={styles.row}>
-                    <button style={styles.btnOutline} onClick={(e) => { e.stopPropagation(); handleResolve(a.id); }} disabled={actioning === a.id}>{actioning === a.id ? '...' : '✓ Mark as Resolved'}</button>
-                    <button style={{ background: COLORS.redLight, color: COLORS.red, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); handleDelete(a.id); }} disabled={actioning === a.id + '-del'}>{actioning === a.id + '-del' ? '...' : 'Delete'}</button>
-                  </div>
-                )}
-                
-                {a.status === 'resolved' && <div style={{ fontSize: 12, color: COLORS.green, fontWeight: 600 }}>✅ Resolved {a.resolvedAt ? `on ${new Date(a.resolvedAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}` : ''}</div>}
-                
-                {a.purchaseUrl && a.status === 'active' && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-                    <button style={{
-                      background: `linear-gradient(90deg, ${COLORS.orange}, ${COLORS.amber})`,
-                      color: COLORS.white, border: 'none', borderRadius: 8,
-                      padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(249,115,22,0.15)'
-                    }}>
-                      📦 Order Restock Now ➔
-                    </button>
+                {a.type === 'manual' && a.status === 'active' && isPremium && (
+                  <div style={{ ...styles.row, marginTop: 12 }}>
+                    <button style={styles.btnOutline} onClick={() => handleResolve(a.id)} disabled={actioning === a.id}>✓ Mark as Fixed</button>
+                    <button style={{ background: COLORS.redLight, color: COLORS.red, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }} onClick={() => handleDelete(a.id)} disabled={actioning === a.id + '-del'}>Delete</button>
                   </div>
                 )}
               </div>
