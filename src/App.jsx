@@ -147,7 +147,7 @@ function useLimits() {
   const fetchLimits = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res  = await fetch('https://backend-repo-psi.vercel.app/api/premium/limits', {
+      const res  = await fetch(`https://backend-repo-psi.vercel.app/api/premium/limits`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -279,7 +279,7 @@ function LoginPage({ onLogin, onSignup, onAdmin }) {
   const [error,setError]=useState("");
   const handleLogin = async () => {
     try {
-      const res = await fetch('https://backend-repo-psi.vercel.app/api/auth/login', {
+      const res = await fetch(`https://backend-repo-psi.vercel.app/api/auth/login`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ email, password: pass })
       });
@@ -328,7 +328,7 @@ function SignupPage({ onBack }) {
     if (form.password !== form.confirm) return setError('Passwords do not match');
     setLoading(true); setError('');
     try {
-      const res = await fetch('https://backend-repo-psi.vercel.app/api/auth/signup', {
+      const res = await fetch(`https://backend-repo-psi.vercel.app/api/auth/signup`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ businessName:form.businessName, ownerName:form.ownerName, email:form.email, phone:form.phone, password:form.password })
       });
@@ -376,11 +376,13 @@ function Dashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const res  = await fetch('https://backend-repo-psi.vercel.app/api/dashboard', { headers });
+        const res  = await fetch(`https://backend-repo-psi.vercel.app/api/dashboard`, { headers });
+        if (!res.ok) throw new Error(`Dashboard returned ${res.status}`);
         const json = await res.json();
         setData(json);
       } catch (err) {
         console.error('Dashboard fetch failed:', err);
+        setData(null);
       } finally {
         setLoading(false);
       }
@@ -395,7 +397,15 @@ function Dashboard() {
     </div>
   );
 
-  if (!data) return (
+  const hasDashboardData =
+    data?.today &&
+    data?.monthly &&
+    Array.isArray(data.weeklyData) &&
+    Array.isArray(data.salesByCategory) &&
+    Array.isArray(data.topProducts) &&
+    Array.isArray(data.lowStockItems);
+
+  if (!hasDashboardData) return (
     <div style={{ textAlign: 'center', padding: '80px 0', color: COLORS.red }}>
       Failed to load dashboard data.
     </div>
@@ -686,7 +696,7 @@ function Inventory() {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res  = await fetch('https://backend-repo-psi.vercel.app/api/inventory', { headers });
+      const res  = await fetch(`https://backend-repo-psi.vercel.app/api/inventory`, { headers });
       const data = await res.json();
       setItems(data.items || []);
       setTV(data.totalValue || 0);
@@ -871,8 +881,8 @@ function Recipes() {
     setLoading(true);
     try {
       const [rRes, iRes] = await Promise.all([
-        fetch('https://backend-repo-psi.vercel.app/api/recipes',   { headers }),
-        fetch('https://backend-repo-psi.vercel.app/api/inventory', { headers }),
+        fetch(`https://backend-repo-psi.vercel.app/api/recipes`,   { headers }),
+        fetch(`https://backend-repo-psi.vercel.app/api/inventory`, { headers }),
       ]);
       const rData = await rRes.json();
       const iData = await iRes.json();
@@ -912,7 +922,7 @@ function Recipes() {
     
     setSaving(true); setFormError('');
     try {
-      const url    = editItem ? `https://backend-repo-psi.vercel.app/api/recipes/${editItem.id}` : 'https://backend-repo-psi.vercel.app/api/recipes';
+      const url    = editItem ? `https://backend-repo-psi.vercel.app/api/recipes/${editItem.id}` : `https://backend-repo-psi.vercel.app/api/recipes`;
       const method = editItem ? 'PUT' : 'POST';
       const payload = { ...form, sellingUnit: 'pcs', ingredients: validIngredients };
       const res    = await fetch(url, { method, headers, body: JSON.stringify(payload) });
@@ -1160,8 +1170,8 @@ function ProductInventory() {
     setLoading(true);
     try {
       const [piRes, rRes] = await Promise.all([
-        fetch('https://backend-repo-psi.vercel.app/api/product-inventory', { headers }),
-        fetch('https://backend-repo-psi.vercel.app/api/recipes', { headers }),
+        fetch(`https://backend-repo-psi.vercel.app/api/product-inventory`, { headers }),
+        fetch(`https://backend-repo-psi.vercel.app/api/recipes`, { headers }),
       ]);
       const piData = await piRes.json();
       const rData  = await rRes.json();
@@ -1194,7 +1204,7 @@ function ProductInventory() {
     if (!form.quantity || parseFloat(form.quantity) < 0) return setFormError('Enter a valid quantity.');
     setSaving(true); setFormError('');
     try {
-      const url    = editItem ? `https://backend-repo-psi.vercel.app/api/product-inventory/${editItem.id}` : 'https://backend-repo-psi.vercel.app/api/product-inventory';
+      const url    = editItem ? `https://backend-repo-psi.vercel.app/api/product-inventory/${editItem.id}` : `https://backend-repo-psi.vercel.app/api/product-inventory`;
       const method = editItem ? 'PUT' : 'POST';
       const res    = await fetch(url, { method, headers, body: JSON.stringify(form) });
       const data   = await res.json();
@@ -1305,7 +1315,7 @@ function POS() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res  = await fetch('https://backend-repo-psi.vercel.app/api/pos/products', { headers });
+      const res  = await fetch(`https://backend-repo-psi.vercel.app/api/pos/products`, { headers });
       const data = await res.json();
       setProducts(data.products || []);
     } catch (err) { console.error(err); }
@@ -1315,7 +1325,7 @@ function POS() {
   const fetchHistory = async () => {
     setHistoryLoading(true);
     try {
-      const res  = await fetch('https://backend-repo-psi.vercel.app/api/pos/orders', { headers });
+      const res  = await fetch(`https://backend-repo-psi.vercel.app/api/pos/orders`, { headers });
       const data = await res.json();
       setOrderHistory(data.orders || []);
     } catch (err) { console.error(err); }
@@ -1347,10 +1357,10 @@ function POS() {
   const handleConfirmOrder = async () => {
     setSaving(true);
     try {
-      const res = await fetch('https://backend-repo-psi.vercel.app/api/pos/orders', {
+      const res = await fetch(`https://backend-repo-psi.vercel.app/api/pos/orders`, {
         method:'POST', headers,
         body: JSON.stringify({
-          items: order.map(o=>({ recipeId:o.id, name:o.name, quantity:o.qty, unitPrice:o.selling_price })),
+          items: order.map(o=>({ recipeId:o.id, productInventoryId:o.product_inventory_id, name:o.name, quantity:o.qty, unitPrice:o.selling_price })),
           paymentMethod,
           amountPaid: paymentMethod==='Cash' ? parseFloat(amountPaid) : subtotal,
         }),
@@ -1358,7 +1368,7 @@ function POS() {
       const data = await res.json();
       if (!res.ok) return alert(data.message || 'Order failed.');
       setLastOrder({ orderId:data.orderId, total:subtotal, paymentMethod, change:data.change||0 });
-      setShowPayment(false); setShowSuccess(true); clearOrder();
+      setShowPayment(false); setShowSuccess(true); clearOrder(); fetchProducts();
     } catch { alert('Cannot connect to server.'); }
     finally { setSaving(false); }
   };
@@ -1533,7 +1543,7 @@ function RestockModal({ inventoryItems, onClose, onSaved }) {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('https://backend-repo-psi.vercel.app/api/purchases', {
+      const res = await fetch(`https://backend-repo-psi.vercel.app/api/purchases`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -1778,8 +1788,8 @@ function Purchases() {
     setLoading(true);
     try {
       const [pRes, iRes] = await Promise.all([
-        fetch('https://backend-repo-psi.vercel.app/api/purchases',  { headers }),
-        fetch('https://backend-repo-psi.vercel.app/api/inventory',  { headers }),
+        fetch(`https://backend-repo-psi.vercel.app/api/purchases`,  { headers }),
+        fetch(`https://backend-repo-psi.vercel.app/api/inventory`,  { headers }),
       ]);
       const pData = await pRes.json();
       const iData = await iRes.json();
@@ -2358,7 +2368,7 @@ function PremiumPage() {
   const fetchSub = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res   = await fetch('https://backend-repo-psi.vercel.app/api/premium/status', {
+      const res   = await fetch(`https://backend-repo-psi.vercel.app/api/premium/status`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data  = await res.json();
@@ -2733,7 +2743,7 @@ function Alerts({ onAlertChange }) {
   const fetchAlerts = async () => {
     setLoading(true);
     try {
-      const res  = await fetch('https://backend-repo-psi.vercel.app/api/alerts', { headers });
+      const res  = await fetch(`https://backend-repo-psi.vercel.app/api/alerts`, { headers });
       const data = await res.json();
       setAutoAlerts(data.autoAlerts || []);
       setManualAlerts(data.manualAlerts || []);
@@ -2751,7 +2761,7 @@ function Alerts({ onAlertChange }) {
     if (!form.title) return setFormError('Title is required.');
     setSaving(true); setFormError('');
     try {
-      const res  = await fetch('https://backend-repo-psi.vercel.app/api/alerts', { method: 'POST', headers, body: JSON.stringify(form) });
+      const res  = await fetch(`https://backend-repo-psi.vercel.app/api/alerts`, { method: 'POST', headers, body: JSON.stringify(form) });
       const data = await res.json();
       if (!res.ok) return setFormError(data.message || 'Failed to create.');
       setShowModal(false); fetchAlerts();
@@ -2874,13 +2884,13 @@ function Alerts({ onAlertChange }) {
                     <span style={{ fontSize: 20 }}>{sevIcon(a.severity)}</span>
                     <span style={{ fontWeight: 700, fontSize: 14 }}>{a.title}</span>
                     <span style={styles.tag(sevColor(a.severity))}>{a.severity}</span>
-                    {a.type === 'inventory' && <span style={{ ...styles.badge(COLORS.blue, COLORS.blueLight), fontSize: 10 }}>Auto</span>}
+                    {(a.type === 'inventory' || a.type === 'product') && <span style={{ ...styles.badge(COLORS.blue, COLORS.blueLight), fontSize: 10 }}>Auto</span>}
                     {a.type === 'manual'    && <span style={{ ...styles.badge(COLORS.gray600, COLORS.gray100), fontSize: 10 }}>Manual</span>}
                   </div>
                   {a.createdAt && <span style={{ fontSize: 11, color: COLORS.gray400 }}>{new Date(a.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</span>}
                 </div>
                 {a.message && <p style={{ fontSize: 13, color: COLORS.gray600, marginBottom: 12 }}>{a.message}</p>}
-                {a.type === 'inventory' && (
+                {(a.type === 'inventory' || a.type === 'product') && (
                   <div style={{ background: COLORS.white, borderRadius: 8, padding: '10px 14px', marginBottom: 12, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                     <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Item:</div><div style={{ fontWeight: 600 }}>{a.item}</div></div>
                     <div><div style={{ fontSize: 11, color: COLORS.gray500 }}>Current Stock:</div><div style={{ fontWeight: 600, color: COLORS.red }}>{a.current}</div></div>
@@ -2914,7 +2924,7 @@ function Profile() {
     (async()=>{
       try {
         const token=localStorage.getItem('token');
-        const res=await fetch('https://backend-repo-psi.vercel.app/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});
+        const res=await fetch(`https://backend-repo-psi.vercel.app/api/auth/me`,{headers:{'Authorization':`Bearer ${token}`}});
         const data=await res.json();
         if(data.user) setUser(data.user);
       } catch(err){console.error(err);}
@@ -2989,7 +2999,7 @@ function Profile() {
     if (!window.confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
     try {
       const token = localStorage.getItem('token');
-      const res   = await fetch('https://backend-repo-psi.vercel.app/api/auth/delete-account', {
+      const res   = await fetch(`https://backend-repo-psi.vercel.app/api/auth/delete-account`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -3090,9 +3100,23 @@ function Sidebar({ page, setPage, onLogout, alertCount }) {
 
 // ── Main App ──
 export default function App() {
-  const [screen, setScreen] = useState(() => localStorage.getItem('screen') || "login");
+  const [screen, setScreen] = useState(() => {
+    const savedScreen = localStorage.getItem('screen');
+    const hasToken = Boolean(localStorage.getItem('token'));
+    if (hasToken) return savedScreen || "login";
+    return savedScreen === "signup" || savedScreen === "adminLogin" ? savedScreen : "login";
+  });
   const [page, setPage]     = useState(() => localStorage.getItem('page') || "dashboard");
   const [alertCount, setAlertCount] = useState(0);
+
+  useEffect(() => {
+    const hasToken = Boolean(localStorage.getItem('token'));
+    if (!hasToken && (screen === "app" || screen === "admin")) {
+      localStorage.removeItem('screen');
+      localStorage.removeItem('page');
+      setScreen("login");
+    }
+  }, [screen]);
 
   // Fetch alert count whenever user is in the app
   useEffect(() => {
@@ -3100,7 +3124,7 @@ export default function App() {
     const fetchAlertCount = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res   = await fetch('https://backend-repo-psi.vercel.app/api/alerts', {
+        const res   = await fetch(`https://backend-repo-psi.vercel.app/api/alerts`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -3123,7 +3147,7 @@ export default function App() {
     pos:<POS/>, purchases:<Purchases/>, analytics:<Analytics/>,
     alerts:<Alerts onAlertChange={()=>{
       // Refresh badge when alerts page changes something
-      fetch('https://backend-repo-psi.vercel.app/api/alerts', {
+      fetch(`https://backend-repo-psi.vercel.app/api/alerts`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       }).then(r=>r.json()).then(d=>setAlertCount(d.summary?.total||0)).catch(()=>{});
     }}/>,
@@ -3147,7 +3171,7 @@ function AdminLogin({ onBack, onLogin }) {
   const [error,setError]=useState('');
   const handleAdminLogin = async () => {
     try {
-      const res=await fetch('https://backend-repo-psi.vercel.app/api/auth/admin-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
+      const res=await fetch(`https://backend-repo-psi.vercel.app/api/auth/admin-login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
       const data=await res.json();
       if(data.token){localStorage.setItem('token',data.token);onLogin();}
       else setError(data.message||'Invalid admin credentials');
@@ -3217,7 +3241,7 @@ function AdminOverview() {
   useEffect(() => {
     (async () => {
       try {
-        const res  = await fetch('https://backend-repo-psi.vercel.app/api/admin/overview', { headers });
+        const res  = await fetch(`https://backend-repo-psi.vercel.app/api/admin/overview`, { headers });
         const json = await res.json();
         setData(json);
       } catch(err) { console.error(err); }
@@ -3393,7 +3417,7 @@ function AdminUsers() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res  = await fetch('https://backend-repo-psi.vercel.app/api/admin/users', { headers });
+      const res  = await fetch(`https://backend-repo-psi.vercel.app/api/admin/users`, { headers });
       const data = await res.json();
       setUsers(data.users || []);
     } catch(err) { console.error(err); }
@@ -3530,8 +3554,8 @@ function AdminSubs() {
     (async () => {
       try {
         const [sRes, rRes] = await Promise.all([
-          fetch('https://backend-repo-psi.vercel.app/api/admin/subscriptions', { headers }),
-          fetch('https://backend-repo-psi.vercel.app/api/admin/upgrade-requests', { headers }),
+          fetch(`https://backend-repo-psi.vercel.app/api/admin/subscriptions`, { headers }),
+          fetch(`https://backend-repo-psi.vercel.app/api/admin/upgrade-requests`, { headers }),
         ]);
         setData(await sRes.json());
         const rData = await rRes.json();
@@ -3555,8 +3579,8 @@ function AdminSubs() {
       });
       // Refresh
       const [sRes, rRes] = await Promise.all([
-        fetch('https://backend-repo-psi.vercel.app/api/admin/subscriptions', { headers }),
-        fetch('https://backend-repo-psi.vercel.app/api/admin/upgrade-requests', { headers }),
+        fetch(`https://backend-repo-psi.vercel.app/api/admin/subscriptions`, { headers }),
+        fetch(`https://backend-repo-psi.vercel.app/api/admin/upgrade-requests`, { headers }),
       ]);
       setData(await sRes.json());
       setReqs((await rRes.json()).requests || []);
@@ -3571,7 +3595,7 @@ function AdminSubs() {
       await fetch(`https://backend-repo-psi.vercel.app/api/admin/upgrade-requests/${reqId}/reject`, {
         method:'PUT', headers,
       });
-      const rRes = await fetch('https://backend-repo-psi.vercel.app/api/admin/upgrade-requests', { headers });
+      const rRes = await fetch(`https://backend-repo-psi.vercel.app/api/admin/upgrade-requests`, { headers });
       setReqs((await rRes.json()).requests || []);
     } catch(err) { console.error(err); }
     finally { setAct(null); }
@@ -3834,7 +3858,7 @@ function AdminUsage() {
   useEffect(() => {
     (async () => {
       try {
-        const res  = await fetch('https://backend-repo-psi.vercel.app/api/admin/usage', { headers });
+        const res  = await fetch(`https://backend-repo-psi.vercel.app/api/admin/usage`, { headers });
         const json = await res.json();
         setData(json);
       } catch(err) { console.error(err); }
@@ -3975,7 +3999,7 @@ function BillingModal({ onClose, onSuccess, initialCycle, initialStep }) {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res   = await fetch('https://backend-repo-psi.vercel.app/api/premium/request-upgrade', {
+      const res   = await fetch(`https://backend-repo-psi.vercel.app/api/premium/request-upgrade`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body:    JSON.stringify({ billingCycle: cycle, gcashRef: refCode.trim(), gcashNumber: gcashNum, gcashName: name }),
@@ -4321,7 +4345,7 @@ function CancelSubscriptionModal({ subscription, onClose, onCancelled }) {
     setLoading(true); setError('');
     try {
       const token = localStorage.getItem('token');
-      const res   = await fetch('https://backend-repo-psi.vercel.app/api/premium/cancel-subscription', {
+      const res   = await fetch(`https://backend-repo-psi.vercel.app/api/premium/cancel-subscription`, {
         method:  'POST',
         headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
       });
